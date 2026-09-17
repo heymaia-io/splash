@@ -1,0 +1,21 @@
+# Upstream Komelia (Kotlin) clone — read-only reference, has its own .git
+/kotlin/
+
+# graphify cache (graph.json / GRAPH_REPORT.md are tracked)
+/graphify-out/cache/
+
+# Claude Code local state
+/.claude/scheduled_tasks.lock
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+/swift/build/
+.DS_Store
+
+# Local tooling / fixture data
+/tools/bin/
+/fixtures/komga/data/
