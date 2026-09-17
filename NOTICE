@@ -1,0 +1,35 @@
+Splash
+Copyright 2026 HeyMaia
+
+This product includes software developed as part of the Komelia project
+(https://github.com/Snd-R/Komelia), Copyright the Komelia authors (Snd-R),
+licensed under the Apache License, Version 2.0.
+
+Splash is a derivative work of Komelia: the original Kotlin Multiplatform
+source was translated to Swift and modified. Modifications include, but are
+not limited to, a SwiftUI user interface, GRDB-backed persistence, an
+ImageIO/Core Graphics image pipeline, a Readium-based EPUB reader, PDFKit
+rendering, background downloads via URLSession, and StoreKit 2 purchases.
+
+The Komga REST wire models and HTTP clients are additionally derived from
+komga-client (https://github.com/Snd-R/komga-client), Copyright the
+komga-client authors (Snd-R), licensed under the MIT License.
+
+Komga (https://github.com/gotson/komga) is the media server this client
+talks to. Splash is an unofficial, independent client and is not affiliated
+with or endorsed by the Komga project.
+
+--------------------------------------------------------------------------
+
+Third-party dependencies distributed with the application, with their
+license texts bundled in the app (Settings > Third-party licenses,
+swift/Packages/SplashKit/Sources/SplashUI/Resources/):
+
+  GRDB.swift             MIT           https://github.com/groue/GRDB.swift
+  Readium Swift Toolkit  BSD 3-Clause  https://github.com/readium/swift-toolkit
+  ZIPFoundation (fork)   MIT           https://github.com/readium/ZIPFoundation
+  CryptoSwift            Attribution   https://github.com/krzyzanowskim/CryptoSwift
+  DifferenceKit          Apache 2.0    https://github.com/ra1028/DifferenceKit
+  Fuzi                   MIT           https://github.com/cezheng/Fuzi
+  SwiftSoup              MIT           https://github.com/scinfu/SwiftSoup
+  Zip                    MIT           https://github.com/marmelroy/Zip
