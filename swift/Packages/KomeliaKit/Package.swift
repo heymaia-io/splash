@@ -34,9 +34,11 @@ let package = Package(
         // komelia-infra/database — implements the Core/Offline repository protocols (same direction as Gradle)
         .target(
             name: "KomeliaDB",
-            dependencies: ["KomeliaCore", "KomeliaOffline", .product(name: "GRDB", package: "GRDB.swift")]),
+            dependencies: [
+                "KomgaAPI", "KomeliaCore", "KomeliaOffline", .product(name: "GRDB", package: "GRDB.swift"),
+            ]),
         // komelia-infra/image-decoder
-        .target(name: "KomeliaImage", dependencies: ["KomeliaCore"]),
+        .target(name: "KomeliaImage", dependencies: ["KomgaAPI", "KomeliaCore"]),
 
         // komelia-ui — SwiftUI screens + view models (depends only on protocols, never on concrete APIs)
         .target(name: "KomeliaUI", dependencies: ["KomgaAPI", "KomeliaCore", "KomeliaImage", "KomeliaOffline"]),
@@ -50,6 +52,11 @@ let package = Package(
         .testTarget(name: "KomeliaCoreTests", dependencies: ["KomeliaCore"]),
         .testTarget(name: "KomeliaDBTests", dependencies: ["KomeliaDB"]),
         .testTarget(name: "KomeliaUITests", dependencies: ["KomeliaUI", "KomgaRemote"]),
+        .testTarget(
+            name: "KomeliaOfflineTests",
+            dependencies: ["KomeliaOffline", "KomeliaDB", "KomgaRemote"],
+            resources: [.copy("Fixtures")]),
+        .testTarget(name: "KomeliaImageTests", dependencies: ["KomeliaImage"]),
     ],
     swiftLanguageModes: [.v6]
 )
