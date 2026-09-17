@@ -34,7 +34,12 @@ public final class KomgaCookieStore: Sendable {
         }
     }
 
-    /// Drops every cookie and the persisted remember-me (logout / server change).
+    /// Forgets in-memory cookies only (switching servers).
+    public func resetInMemory() async {
+        cookies.withLock { $0.removeAll() }
+    }
+
+    /// Drops every cookie and the persisted remember-me (logout).
     public func clear() async {
         cookies.withLock { $0.removeAll() }
         try? await persistence?.deleteCookie(serverURL: serverURL().absoluteString)

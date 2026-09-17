@@ -13,6 +13,8 @@ let package = Package(
         .library(name: "KomeliaDB", targets: ["KomeliaDB"]),
         .library(name: "KomeliaOffline", targets: ["KomeliaOffline"]),
         .library(name: "KomeliaImage", targets: ["KomeliaImage"]),
+        .library(name: "KomeliaUI", targets: ["KomeliaUI"]),
+        .library(name: "KomeliaAppShared", targets: ["KomeliaAppShared"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
@@ -36,10 +38,18 @@ let package = Package(
         // komelia-infra/image-decoder
         .target(name: "KomeliaImage", dependencies: ["KomeliaCore"]),
 
+        // komelia-ui — SwiftUI screens + view models (depends only on protocols, never on concrete APIs)
+        .target(name: "KomeliaUI", dependencies: ["KomgaAPI", "KomeliaCore", "KomeliaImage", "KomeliaOffline"]),
+        // komelia-app/shared — composition root (AppModule)
+        .target(
+            name: "KomeliaAppShared",
+            dependencies: ["KomeliaUI", "KomgaRemote", "KomeliaCore", "KomeliaDB", "KomeliaOffline", "KomeliaImage"]),
+
         .testTarget(name: "KomgaAPITests", dependencies: ["KomgaAPI"], resources: [.copy("Fixtures")]),
         .testTarget(name: "KomgaRemoteTests", dependencies: ["KomgaRemote"]),
         .testTarget(name: "KomeliaCoreTests", dependencies: ["KomeliaCore"]),
         .testTarget(name: "KomeliaDBTests", dependencies: ["KomeliaDB"]),
+        .testTarget(name: "KomeliaUITests", dependencies: ["KomeliaUI", "KomgaRemote"]),
     ],
     swiftLanguageModes: [.v6]
 )

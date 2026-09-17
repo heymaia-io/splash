@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000000000000000000101 /* KomgaAPI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000201 /* KomgaAPI */; };
-		A10000000000000000000102 /* KomgaRemote in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000202 /* KomgaRemote */; };
+		A10000000000000000000101 /* KomeliaAppShared in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000201 /* KomeliaAppShared */; };
+		A10000000000000000000102 /* KomeliaUI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000202 /* KomeliaUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,8 +24,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000101 /* KomgaAPI in Frameworks */,
-				A10000000000000000000102 /* KomgaRemote in Frameworks */,
+				A10000000000000000000101 /* KomeliaAppShared in Frameworks */,
+				A10000000000000000000102 /* KomeliaUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,8 +68,8 @@
 			);
 			name = Komelia;
 			packageProductDependencies = (
-				A10000000000000000000201 /* KomgaAPI */,
-				A10000000000000000000202 /* KomgaRemote */,
+				A10000000000000000000201 /* KomeliaAppShared */,
+				A10000000000000000000202 /* KomeliaUI */,
 			);
 			productName = Komelia;
 			productReference = A10000000000000000000301 /* Komelia.app */;
@@ -190,6 +190,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Komelia;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
+				INFOPLIST_FILE = "Config/Komelia-Info.plist";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Komelia connects to your Komga server on the local network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -222,6 +223,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Komelia;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
+				INFOPLIST_FILE = "Config/Komelia-Info.plist";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Komelia connects to your Komga server on the local network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -274,13 +276,13 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A10000000000000000000201 /* KomgaAPI */ = {
+		A10000000000000000000201 /* KomeliaAppShared */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = KomgaAPI;
+			productName = KomeliaAppShared;
 		};
-		A10000000000000000000202 /* KomgaRemote */ = {
+		A10000000000000000000202 /* KomeliaUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = KomgaRemote;
+			productName = KomeliaUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
