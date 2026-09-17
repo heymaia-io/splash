@@ -1,0 +1,15 @@
+# Komga test server for the iOS port (plan Phase 0 fixture).
+# Usage: ./setup.sh   (generates CBZs, starts server, seeds libraries/collection/readlist)
+name: komelia-ios-fixture
+services:
+  komga:
+    image: gotson/komga:latest
+    container_name: komelia-ios-komga
+    ports:
+      - "25601:25600"
+    volumes:
+      - ./data/config:/config
+      - ./data/libraries:/data:ro
+    environment:
+      - TZ=UTC
+    restart: "no"

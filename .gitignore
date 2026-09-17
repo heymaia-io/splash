@@ -19,3 +19,4 @@ xcuserdata/
 # Local tooling / fixture data
 /tools/bin/
 /fixtures/komga/data/
+/reference/
