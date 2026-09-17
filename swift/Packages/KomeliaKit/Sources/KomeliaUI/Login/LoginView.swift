@@ -5,6 +5,8 @@ public struct LoginView: View {
     @Bindable var model: LoginViewModel
     @State private var showAutoLoginError = true
     @FocusState private var focused: Field?
+    @Environment(\.offlineController) private var offline
+    @State private var offlineUsers: [OfflineUserChoice] = []
 
     private enum Field { case url, user, password, apiKey }
 
@@ -22,7 +24,10 @@ public struct LoginView: View {
                 form
             }
         }
-        .task { await model.initialize() }
+        .task {
+            await model.initialize()
+            offlineUsers = await offline?.offlineUsers() ?? []
+        }
     }
 
     private var form: some View {
@@ -95,6 +100,23 @@ public struct LoginView: View {
                 }
             }
             .listRowBackground(Color.clear)
+
+            if let offline, !offlineUsers.isEmpty {
+                Section("Offline mode") {
+                    ForEach(offlineUsers) { user in
+                        Button {
+                            Task { await offline.goOffline(as: user.id) }
+                        } label: {
+                            VStack(alignment: .leading) {
+                                Text("Read downloads as \(user.email)")
+                                if let server = user.serverURL {
+                                    Text(server).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         .scrollContentBackground(.hidden)
         .frame(maxWidth: 520)
@@ -119,6 +141,9 @@ public struct LoginView: View {
             } else {
                 Button("Retry", action: model.retryAutoLogin)
                     .buttonStyle(.borderedProminent)
+                if let offline, let user = offlineUsers.first {
+                    Button("Go offline") { Task { await offline.goOffline(as: user.id) } }
+                }
                 Button("Login with another account") { showAutoLoginError = false }
             }
         }

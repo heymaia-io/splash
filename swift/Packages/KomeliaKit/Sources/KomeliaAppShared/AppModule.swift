@@ -1,63 +1,57 @@
 import Foundation
 import KomeliaCore
 import KomeliaDB
+import KomeliaOffline
 import KomeliaUI
 import KomgaAPI
 import KomgaRemote
+import Observation
 import Synchronization
 
 /// Composition root — port of `komelia-app/shared/.../AppModule.kt` (explicit construction, no DI framework).
 @MainActor
+@Observable
 public final class AppModule: AppSession {
-    /// Where persistent state lives; swapped for in-memory stores in previews/tests.
+    public static let downloadSessionIdentifier = "io.github.komelia.ios.downloads"
+
+    /// Where persistent state lives.
     public struct Storage: Sendable {
-        public var appSettings: any SettingsStore<AppSettings>
-        public var imageReaderSettings: any SettingsStore<ImageReaderSettings>
-        public var homeFilters: any SettingsStore<[HomeScreenFilter]>
+        public var database: KomeliaDatabase
         public var secrets: any SecretsRepository
         public var thumbnailCache: ThumbnailLoader.Configuration
+        public var downloadRoot: URL
+        public var downloadConfiguration: DownloadManagerConfiguration
 
         public init(
-            appSettings: any SettingsStore<AppSettings>,
-            imageReaderSettings: any SettingsStore<ImageReaderSettings>,
-            homeFilters: any SettingsStore<[HomeScreenFilter]>,
-            secrets: any SecretsRepository,
-            thumbnailCache: ThumbnailLoader.Configuration = .default
+            database: KomeliaDatabase, secrets: any SecretsRepository,
+            thumbnailCache: ThumbnailLoader.Configuration = .default, downloadRoot: URL,
+            downloadConfiguration: DownloadManagerConfiguration
         ) {
-            self.appSettings = appSettings
-            self.imageReaderSettings = imageReaderSettings
-            self.homeFilters = homeFilters
+            self.database = database
             self.secrets = secrets
             self.thumbnailCache = thumbnailCache
-        }
-
-        /// Production wiring: GRDB databases in Application Support + Keychain.
-        public static func persistent(database: KomeliaDatabase) -> Storage {
-            Storage(
-                appSettings: GRDBAppSettingsStore(database.app),
-                imageReaderSettings: GRDBImageReaderSettingsStore(database.app),
-                homeFilters: GRDBHomeScreenFilterStore<HomeScreenFilter>(database.app),
-                secrets: KeychainSecretsRepository())
-        }
-
-        public static func inMemory() -> Storage {
-            Storage(
-                appSettings: InMemorySettingsStore<AppSettings>(),
-                imageReaderSettings: InMemorySettingsStore<ImageReaderSettings>(),
-                homeFilters: InMemorySettingsStore<[HomeScreenFilter]>(),
-                secrets: InMemorySecretsRepository(),
-                thumbnailCache: .init(directory: FileManager.default.temporaryDirectory.appending(path: "thumbs")))
+            self.downloadRoot = downloadRoot
+            self.downloadConfiguration = downloadConfiguration
         }
     }
+
+    // MARK: Public graph
 
     public let settings: CommonSettingsRepository
     public let imageReaderSettings: ImageReaderSettingsRepository
     public let homeFilters: HomeScreenFilterRepository
     public let authState = KomgaAuthenticationState()
     public let events = KomgaEventBroadcaster()
-    public let api: any KomgaApi
     public let thumbnails: ThumbnailLoader
-    public private(set) lazy var viewModelFactory = ViewModelFactory(
+    public let offline: OfflineModule
+    public let offlineSettings: OfflineSettingsStateRepository
+    public let remoteApi: RemoteKomgaApi
+    public private(set) var offlineController: OfflineController?
+    /// Changes whenever the active API switches (online ↔ offline) so the UI rebuilds its screens.
+    public private(set) var contentGeneration = 0
+    public private(set) var isOfflineMode: Bool
+
+    @ObservationIgnored public private(set) lazy var viewModelFactory = ViewModelFactory(
         apiProvider: { [unowned self] in self.api },
         settings: settings,
         imageReaderSettings: imageReaderSettings,
@@ -66,20 +60,30 @@ public final class AppModule: AppSession {
         events: events,
         thumbnails: thumbnails)
 
-    private let secrets: any SecretsRepository
-    private let apiKeyStore: ApiKeyStore
-    private let cookieStore: KomgaCookieStore
-    private let server: ServerURLHolder
-    private let liveEvents: LiveEventsController
+    /// The API every screen uses: remote, or the offline implementation while in offline mode.
+    public var api: any KomgaApi { apiHolder.current }
+
+    // MARK: Private
+
+    @ObservationIgnored private let secrets: any SecretsRepository
+    @ObservationIgnored private let apiKeyStore: ApiKeyStore
+    @ObservationIgnored private let cookieStore: KomgaCookieStore
+    @ObservationIgnored private let server: ServerURLHolder
+    @ObservationIgnored private let apiHolder: ApiHolder
+    @ObservationIgnored private let liveEvents: LiveEventsController
+    @ObservationIgnored private var accessPolicy: any OfflineAccessPolicy = AlwaysUnlockedPolicy()
 
     private init(
         settings: CommonSettingsRepository, imageReaderSettings: ImageReaderSettingsRepository,
-        homeFilters: HomeScreenFilterRepository, storage: Storage
+        homeFilters: HomeScreenFilterRepository, offlineSettings: OfflineSettingsStateRepository,
+        storage: Storage
     ) {
         self.settings = settings
         self.imageReaderSettings = imageReaderSettings
         self.homeFilters = homeFilters
+        self.offlineSettings = offlineSettings
         self.secrets = storage.secrets
+        isOfflineMode = offlineSettings.isOfflineModeEnabled
 
         let server = ServerURLHolder(URL(string: settings.value.serverUrl) ?? URL(string: AppSettings().serverUrl)!)
         self.server = server
@@ -88,40 +92,118 @@ public final class AppModule: AppSession {
         cookieStore = KomgaCookieStore(
             serverURL: server.get, persistence: SecretsCookiePersistence(secrets: storage.secrets))
         let http = KomgaHTTPClient(baseURL: server.get, apiKey: { apiKeyStore.apiKey }, cookieStore: cookieStore)
-        let api = RemoteKomgaApi(http: http)
-        self.api = api
-        thumbnails = ThumbnailLoader(
-            api: { api }, namespace: { server.get().absoluteString }, configuration: storage.thumbnailCache)
-        liveEvents = LiveEventsController(api: api, broadcaster: events, thumbnails: thumbnails)
+
+        // The offline module needs the remote API lazily (downloads/imports) and the remote API needs the
+        // offline book states — the box breaks the construction cycle.
+        let remoteBox = RemoteBox()
+        let downloadRoot = storage.downloadRoot
+        offline = OfflineModule(
+            store: GRDBOfflineDataStore(database: storage.database),
+            tasksRepository: GRDBOfflineTasksRepository(storage.database.offline),
+            settings: offlineSettings,
+            remote: {
+                guard let api = remoteBox.api else { throw KomgaAPIError.unsupported("Not logged in") }
+                return OfflineRemoteContext(api: api, serverURL: server.get())
+            },
+            bookFileRequest: { id in
+                guard let api = remoteBox.api else { throw KomgaAPIError.unsupported("Not logged in") }
+                return api.remoteBookApi.bookFileRequest(id)
+            },
+            downloadConfiguration: storage.downloadConfiguration,
+            downloadRoot: { downloadRoot })
+        let remote = RemoteKomgaApi(http: http, offlineBooks: offline.bookStates, offlineEvents: offline.events)
+        remoteApi = remote
+        remoteBox.set(remote)
+
+        let holder = ApiHolder(offlineSettings.isOfflineModeEnabled ? offline.api : remote)
+        apiHolder = holder
+        let thumbnails = ThumbnailLoader(
+            api: { holder.current }, namespace: { server.get().absoluteString },
+            configuration: storage.thumbnailCache)
+        self.thumbnails = thumbnails
+        liveEvents = LiveEventsController(api: { holder.current }, broadcaster: events, thumbnails: thumbnails)
     }
 
     /// `initDependencies()`
-    public static func make(storage: Storage) async throws -> AppModule {
-        async let settings = SettingsState.load(from: storage.appSettings, default: AppSettings())
-        async let readerSettings = SettingsState.load(from: storage.imageReaderSettings, default: ImageReaderSettings())
-        async let filters = SettingsState.load(from: storage.homeFilters, default: HomeScreenFilter.defaults)
-        let module = try await AppModule(
-            settings: settings, imageReaderSettings: readerSettings, homeFilters: filters, storage: storage)
+    public static func make(storage: Storage, accessPolicy: (any OfflineAccessPolicy)? = nil) async throws
+        -> AppModule
+    {
+        let db = storage.database
+        let settings = try await SettingsState.load(from: GRDBAppSettingsStore(db.app), default: AppSettings())
+        let readerSettings = try await SettingsState.load(
+            from: GRDBImageReaderSettingsStore(db.app), default: ImageReaderSettings())
+        let filters = try await SettingsState.load(
+            from: GRDBHomeScreenFilterStore<HomeScreenFilter>(db.app), default: HomeScreenFilter.defaults)
+        let offlineSettings = try await OfflineSettingsStateRepository.load(
+            database: db, defaultDownloadDirectory: storage.downloadRoot)
+        let module = AppModule(
+            settings: settings, imageReaderSettings: readerSettings, homeFilters: filters,
+            offlineSettings: offlineSettings, storage: storage)
+        if let accessPolicy { module.accessPolicy = accessPolicy }
         await module.cookieStore.loadRememberMeCookie()
         await module.apiKeyStore.loadStoredApiKey(serverURL: module.settings.value.serverUrl)
+        let controller = OfflineController(
+            service: module.offline.downloads, modeSwitch: module, access: module.accessPolicy,
+            wifiOnly: UserDefaults.standard.bool(forKey: wifiOnlyKey),
+            onWifiOnlyChange: { UserDefaults.standard.set($0, forKey: wifiOnlyKey) })
+        module.offlineController = controller
+        await module.offline.start()
+        controller.start()
         return module
     }
 
+    static let wifiOnlyKey = "downloads.wifiOnly"
+
     /// Production entry point used by the app target.
-    public static func makeDefault() async throws -> AppModule {
+    public static func makeDefault(accessPolicy: (any OfflineAccessPolicy)? = nil) async throws -> AppModule {
         let support = try FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let directory = support.appending(path: "Komelia", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // Computed on every launch: the container path changes between app updates.
+        var downloads = directory.appending(path: "Downloads", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: downloads, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true  // re-downloadable content must not bloat iCloud backups
+        try? downloads.setResourceValues(values)
+
         let database = try KomeliaDatabase(directory: directory)
-        return try await make(storage: .persistent(database: database))
+        let wifiOnlyKey = wifiOnlyKey
+        let storage = Storage(
+            database: database, secrets: KeychainSecretsRepository(), downloadRoot: downloads,
+            downloadConfiguration: .background(
+                identifier: downloadSessionIdentifier,
+                allowsCellularAccess: { !UserDefaults.standard.bool(forKey: wifiOnlyKey) }))
+        return try await make(storage: storage, accessPolicy: accessPolicy)
     }
 
-    // MARK: - Live events (Phase 7)
+    /// Late injection of the purchase-backed policy (Phase 16).
+    public func setAccessPolicy(_ policy: any OfflineAccessPolicy) {
+        accessPolicy = policy
+        guard let old = offlineController else { return }
+        let controller = OfflineController(
+            service: offline.downloads, modeSwitch: self, access: policy, wifiOnly: old.wifiOnly,
+            onWifiOnlyChange: { UserDefaults.standard.set($0, forKey: Self.wifiOnlyKey) })
+        offlineController = controller
+        controller.start()
+    }
 
-    /// Starts/stops the SSE session; the app calls this from `scenePhase` changes ([NUEVO] iOS lifecycle).
+    // MARK: - Lifecycle hooks
+
+    /// Starts/stops live events; the app calls this from `scenePhase` changes ([NUEVO] iOS lifecycle).
     public func setLiveEventsActive(_ active: Bool) {
         if active, authState.state == .loaded { liveEvents.start() } else { liveEvents.stop() }
+        if active, authState.state == .loaded, !isOfflineMode, let user = authState.authenticatedUser {
+            // Sync trigger = authenticated online user (`onlineUser.filterNotNull()`), not reachability.
+            let remote = remoteApi
+            let sync = offline.syncManager
+            Task { await sync.onlineUserChanged(user, api: remote) }
+        }
+    }
+
+    /// `application(_:handleEventsForBackgroundURLSession:completionHandler:)`
+    public func handleBackgroundURLSessionEvents(identifier: String, completion: @escaping @Sendable () -> Void) {
+        offline.downloadManager.handleEventsForBackgroundURLSession(
+            identifier: identifier, completionHandler: completion)
     }
 
     #if DEBUG
@@ -133,18 +215,28 @@ public final class AppModule: AppSession {
         guard parts.count == 3 else { return nil }
         try? await settings.set(\.serverUrl, parts[0])
         await switchServer(to: parts[0])
-        guard let user = try? await api.userApi.getMe(username: parts[1], password: parts[2], rememberMe: true),
-              let libraries = try? await api.libraryApi.getLibraries()
+        guard let user = try? await remoteApi.userApi.getMe(username: parts[1], password: parts[2], rememberMe: true),
+              let libraries = try? await remoteApi.libraryApi.getLibraries()
         else { return nil }
         authState.setStateValues(user: user, libraries: libraries)
-        guard let bookId = environment["KOMELIA_DEBUG_BOOK"] else { return nil }
-        return try? await api.bookApi.getOne(KomgaBookId(bookId))
+        guard let bookId = environment["KOMELIA_DEBUG_BOOK"].map(KomgaBookId.init) else { return nil }
+        // KOMELIA_DEBUG_OFFLINE=1: download the book, wait for it, then switch to offline mode.
+        if environment["KOMELIA_DEBUG_OFFLINE"] == "1" {
+            try? await offline.downloads.downloadBook(bookId)
+            for _ in 0..<120 {
+                if (try? await offline.downloads.localFileURL(for: bookId)) != nil { break }
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+            try? await goOffline(as: user.id)
+        }
+        return try? await api.bookApi.getOne(bookId)
     }
     #endif
 
     // MARK: - LoginSession
 
     public func hasStoredSession(serverURL: String) async -> Bool {
+        if isOfflineMode { return true }
         let cookie = try? await secrets.getCookie(url: serverURL)
         let apiKey = try? await secrets.getApiKey(url: serverURL)
         return cookie != nil || apiKey != nil
@@ -165,16 +257,76 @@ public final class AppModule: AppSession {
 
     // MARK: - AppSession
 
-    /// Port of `SettingsNavigationViewModel.logout()` (online branch).
+    /// Port of `SettingsNavigationViewModel.logout()`.
     public func logout() async {
         liveEvents.stop()
-        _ = try? await api.userApi.logout()
+        if isOfflineMode {
+            try? await setOfflineMode(false)
+        } else {
+            _ = try? await remoteApi.userApi.logout()
+        }
         let serverURL = settings.value.serverUrl
         await cookieStore.clear()
         try? await secrets.deleteCookie(url: serverURL)
         try? await apiKeyStore.deleteApiKey(serverURL: serverURL)
         authState.reset()
     }
+
+    private func setOfflineMode(_ offlineMode: Bool) async throws {
+        try await offlineSettings.putOfflineMode(offlineMode)
+        isOfflineMode = offlineMode
+        liveEvents.stop()
+        apiHolder.set(offlineMode ? offline.api : remoteApi)
+        await thumbnails.clearMemory()
+        contentGeneration += 1
+    }
+}
+
+// MARK: - Offline mode switching (`LoginViewModel.offlineLogin`, `MainScreenViewModel.goOnline`)
+
+extension AppModule: OfflineModeSwitching {
+    public func offlineUsers() async -> [OfflineUserChoice] {
+        (try? await offline.store.read { repos in
+            try repos.users.findAll()
+                .filter { $0.id != OfflineUser.root }
+                .map { user in
+                    OfflineUserChoice(
+                        id: user.id, email: user.email,
+                        serverURL: try user.serverId.flatMap { try repos.mediaServers.find($0)?.url })
+                }
+        }) ?? []
+    }
+
+    public func goOffline(as userId: KomgaUserId) async throws {
+        let user = try await offline.store.read { try $0.users.get(userId) }
+        try await offlineSettings.putUserId(userId)
+        try await setOfflineMode(true)
+        let libraries = try await offline.api.libraryApi.getLibraries()
+        authState.setStateValues(user: user.toKomgaUser(), libraries: libraries)
+        setLiveEventsActive(true)
+    }
+
+    /// Kotlin returns to the login screen, which auto-logs-in with the stored cookie.
+    public func goOnline() async throws {
+        try await setOfflineMode(false)
+        authState.reset()
+    }
+}
+
+// MARK: - Support types
+
+/// Current `KomgaApi` (remote or offline), readable from any thread.
+final class ApiHolder: Sendable {
+    private let value: Mutex<any KomgaApi>
+    init(_ api: any KomgaApi) { value = Mutex(api) }
+    var current: any KomgaApi { value.withLock { $0 } }
+    func set(_ api: any KomgaApi) { value.withLock { $0 = api } }
+}
+
+final class RemoteBox: Sendable {
+    private let value = Mutex<RemoteKomgaApi?>(nil)
+    var api: RemoteKomgaApi? { value.withLock { $0 } }
+    func set(_ api: RemoteKomgaApi) { value.withLock { $0 = api } }
 }
 
 /// Thread-safe current server URL (read synchronously by every request).
@@ -198,13 +350,13 @@ final class ServerURLHolder: Sendable {
 /// invalidating thumbnail caches on `Thumbnail*` events (plan Phase 5/7 hook).
 @MainActor
 final class LiveEventsController {
-    private let api: any KomgaApi
+    private let api: @Sendable () -> any KomgaApi
     private let broadcaster: KomgaEventBroadcaster
     private let thumbnails: ThumbnailLoader
     private var session: (any KomgaSSESession)?
     private var pump: Task<Void, Never>?
 
-    init(api: any KomgaApi, broadcaster: KomgaEventBroadcaster, thumbnails: ThumbnailLoader) {
+    init(api: @escaping @Sendable () -> any KomgaApi, broadcaster: KomgaEventBroadcaster, thumbnails: ThumbnailLoader) {
         self.api = api
         self.broadcaster = broadcaster
         self.thumbnails = thumbnails
@@ -212,7 +364,7 @@ final class LiveEventsController {
 
     func start() {
         guard pump == nil else { return }
-        let api = self.api
+        let api = self.api()
         let broadcaster = self.broadcaster
         let thumbnails = self.thumbnails
         pump = Task { [weak self] in

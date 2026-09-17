@@ -136,10 +136,8 @@ struct BookDetails: View {
                             Label(readButtonTitle, systemImage: "book")
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(book.media.status != .ready || book.media.mediaProfile == .epub)
-                        if book.media.mediaProfile == .epub {
-                            Text("EPUB reading arrives in v1.1").font(.caption).foregroundStyle(.secondary)
-                        }
+                        .disabled(book.media.status != .ready)
+                        BookDownloadButton(book: book)
                     }
                 }
                 if let error = model.actionError {

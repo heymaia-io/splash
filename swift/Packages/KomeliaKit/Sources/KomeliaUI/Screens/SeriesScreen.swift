@@ -142,6 +142,7 @@ public final class SeriesViewModel {
 /// Port of `SeriesScreen.kt` / `series/view`.
 struct SeriesScreen: View {
     @State var model: SeriesViewModel
+    @Environment(\.offlineController) private var offline
     let navigate: (Destination) -> Void
     let onRead: (KomeliaBook) -> Void
 
@@ -211,6 +212,15 @@ struct SeriesScreen: View {
                 Divider()
                 Button("Mark as read") { Task { await model.markAsRead() } }
                 Button("Mark as unread") { Task { await model.markAsUnread() } }
+                if let offline, !offline.isOfflineMode {
+                    Divider()
+                    Button { offline.download(series: model.seriesId) } label: {
+                        Label("Download series", systemImage: "arrow.down.circle")
+                    }
+                    if model.books.contains(where: \.downloaded) {
+                        Button("Delete downloaded books", role: .destructive) { offline.delete(series: model.seriesId) }
+                    }
+                }
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
             }
@@ -225,6 +235,13 @@ struct SeriesScreen: View {
 
     @ViewBuilder private func bookMenu(_ book: KomeliaBook) -> some View {
         Button { onRead(book) } label: { Label("Read", systemImage: "book") }
+        if let offline, !offline.isOfflineMode {
+            if book.downloaded {
+                Button("Delete download", role: .destructive) { offline.delete(book: book.id) }
+            } else {
+                Button { offline.download(book: book.id) } label: { Label("Download", systemImage: "arrow.down.circle") }
+            }
+        }
         if book.readProgress?.completed == true {
             Button("Mark as unread") { Task { await model.markBookUnread(book) } }
         } else {

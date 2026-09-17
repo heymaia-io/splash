@@ -9,6 +9,10 @@ public protocol AppSession: LoginSession {
     func logout() async
     /// Live server events (SSE) — active only while authenticated and in the foreground.
     func setLiveEventsActive(_ active: Bool)
+    var offlineController: OfflineController? { get }
+    var isOfflineMode: Bool { get }
+    /// Bumped when the active API changes (online ↔ offline); screens are rebuilt.
+    var contentGeneration: Int { get }
 }
 
 /// Port of `MainView.kt`'s root navigator: Login ↔ main shell, driven by the authentication state.
@@ -22,8 +26,6 @@ public struct AppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     private let initialBook: KomeliaBook?
-    /// Extra settings rows supplied by the composition root (e.g. downloads/offline, Phase 10–11).
-    public var settingsExtras: AnyView?
 
     public init(session: any AppSession, initialBook: KomeliaBook? = nil) {
         self.session = session
@@ -37,9 +39,16 @@ public struct AppRootView: View {
             switch session.authState.state {
             case .authenticationRequired:
                 LoginView(model: loginModel)
+                    .onChange(of: session.contentGeneration) { loginModel = LoginViewModel(session: session) }
             case .loaded:
                 if let mainModel {
-                    main(mainModel)
+                    VStack(spacing: 0) {
+                        if session.isOfflineMode, let offline = session.offlineController {
+                            OfflineBanner(offline: offline)
+                        }
+                        main(mainModel)
+                    }
+                    .id(session.contentGeneration)
                 } else {
                     ProgressView().onAppear {
                         let model = MainScreenViewModel(authState: session.authState)
@@ -50,6 +59,7 @@ public struct AppRootView: View {
             }
         }
         .environment(\.thumbnailLoader, session.viewModelFactory.thumbnails)
+        .environment(\.offlineController, session.offlineController)
         .preferredColorScheme(session.settings.value.appTheme.colorScheme)
         .background(session.settings.value.appTheme == .darker ? Color.black.ignoresSafeArea() : nil)
         .onChange(of: session.authState.state) { _, state in
@@ -72,7 +82,11 @@ public struct AppRootView: View {
                 onRead: { readingBook = $0 })
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView(session: session, extraSections: settingsExtras) {
+            SettingsView(session: session, extraSections: AnyView(
+                NavigationLink { DownloadsSettingsView() } label: {
+                    Label("Downloads & offline", systemImage: "arrow.down.circle")
+                }
+            )) {
                 showSettings = false
                 loginModel = LoginViewModel(session: session)
             }
