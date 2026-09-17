@@ -1,5 +1,6 @@
 import KomeliaAppShared
 import KomeliaUI
+import KomgaAPI
 import SwiftUI
 
 @main
@@ -16,11 +17,12 @@ struct KomeliaApp: App {
 struct BootstrapView: View {
     @State private var module: AppModule?
     @State private var error: Error?
+    @State private var initialBook: KomeliaBook?
 
     var body: some View {
         Group {
             if let module {
-                AppRootView(session: module)
+                AppRootView(session: module, initialBook: initialBook)
             } else if let error {
                 ContentUnavailableView(
                     "Komelia failed to start", systemImage: "exclamationmark.triangle",
@@ -32,7 +34,11 @@ struct BootstrapView: View {
         .task {
             guard module == nil else { return }
             do {
-                module = try await AppModule.makeDefault()
+                let created = try await AppModule.makeDefault()
+                #if DEBUG
+                initialBook = await created.debugBootstrap(environment: ProcessInfo.processInfo.environment)
+                #endif
+                module = created
             } catch {
                 self.error = error
             }

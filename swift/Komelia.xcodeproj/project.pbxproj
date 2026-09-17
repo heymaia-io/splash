@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000101 /* KomeliaAppShared in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000201 /* KomeliaAppShared */; };
 		A10000000000000000000102 /* KomeliaUI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000202 /* KomeliaUI */; };
+		A10000000000000000000103 /* KomgaAPI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000203 /* KomgaAPI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +27,7 @@
 			files = (
 				A10000000000000000000101 /* KomeliaAppShared in Frameworks */,
 				A10000000000000000000102 /* KomeliaUI in Frameworks */,
+				A10000000000000000000103 /* KomgaAPI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,6 +72,7 @@
 			packageProductDependencies = (
 				A10000000000000000000201 /* KomeliaAppShared */,
 				A10000000000000000000202 /* KomeliaUI */,
+				A10000000000000000000203 /* KomgaAPI */,
 			);
 			productName = Komelia;
 			productReference = A10000000000000000000301 /* Komelia.app */;
@@ -283,6 +286,10 @@
 		A10000000000000000000202 /* KomeliaUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = KomeliaUI;
+		};
+		A10000000000000000000203 /* KomgaAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KomgaAPI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

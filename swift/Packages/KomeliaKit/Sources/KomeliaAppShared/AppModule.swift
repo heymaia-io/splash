@@ -124,6 +124,24 @@ public final class AppModule: AppSession {
         if active, authState.state == .loaded { liveEvents.start() } else { liveEvents.stop() }
     }
 
+    #if DEBUG
+    /// UI-automation hook: `KOMELIA_DEBUG_LOGIN="url|user|password"` and `KOMELIA_DEBUG_BOOK=<bookId>`
+    /// (passed with `SIMCTL_CHILD_` prefix to `simctl launch`). Never compiled into release builds.
+    public func debugBootstrap(environment: [String: String]) async -> KomeliaBook? {
+        guard let login = environment["KOMELIA_DEBUG_LOGIN"] else { return nil }
+        let parts = login.split(separator: "|", maxSplits: 2).map(String.init)
+        guard parts.count == 3 else { return nil }
+        try? await settings.set(\.serverUrl, parts[0])
+        await switchServer(to: parts[0])
+        guard let user = try? await api.userApi.getMe(username: parts[1], password: parts[2], rememberMe: true),
+              let libraries = try? await api.libraryApi.getLibraries()
+        else { return nil }
+        authState.setStateValues(user: user, libraries: libraries)
+        guard let bookId = environment["KOMELIA_DEBUG_BOOK"] else { return nil }
+        return try? await api.bookApi.getOne(KomgaBookId(bookId))
+    }
+    #endif
+
     // MARK: - LoginSession
 
     public func hasStoredSession(serverURL: String) async -> Bool {

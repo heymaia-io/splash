@@ -66,6 +66,10 @@ public final class ViewModelFactory {
         ReadListViewModel(readListId: readListId, api: api, settings: settings, events: events)
     }
 
+    public func readerViewModel(bookId: KomgaBookId, siblings: BookSiblingsContext = .series) -> ReaderViewModel {
+        ReaderViewModel(bookId: bookId, api: api, settings: imageReaderSettings, siblings: siblings)
+    }
+
     func searchViewModel(query: String?) -> SearchViewModel {
         SearchViewModel(api: api, initialQuery: query ?? "")
     }

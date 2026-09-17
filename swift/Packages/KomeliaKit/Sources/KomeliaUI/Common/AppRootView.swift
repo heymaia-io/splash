@@ -21,9 +21,13 @@ public struct AppRootView: View {
     @State private var readingBook: KomeliaBook?
     @Environment(\.scenePhase) private var scenePhase
 
-    public init(session: any AppSession) {
+    private let initialBook: KomeliaBook?
+
+    public init(session: any AppSession, initialBook: KomeliaBook? = nil) {
         self.session = session
+        self.initialBook = initialBook
         _loginModel = State(initialValue: LoginViewModel(session: session))
+        _readingBook = State(initialValue: initialBook)
     }
 
     public var body: some View {
@@ -70,18 +74,18 @@ public struct AppRootView: View {
             }
         }
         #if os(iOS)
-        .fullScreenCover(item: $readingBook) { book in readerPlaceholder(book) }
+        .fullScreenCover(item: $readingBook) { book in reader(book, navigator: model.navigator) }
         #else
-        .sheet(item: $readingBook) { book in readerPlaceholder(book) }
+        .sheet(item: $readingBook) { book in reader(book, navigator: model.navigator) }
         #endif
     }
 
-    /// Replaced by the image reader in Phase 9.
-    private func readerPlaceholder(_ book: KomeliaBook) -> some View {
-        NavigationStack {
-            ContentUnavailableView(book.metadata.title, systemImage: "book",
-                                   description: Text("The reader arrives in Phase 9"))
-                .toolbar { Button("Close") { readingBook = nil } }
+    /// Image reader pushed over the main navigator (Kotlin: `navigator.parent.push(ImageReaderScreen)`).
+    private func reader(_ book: KomeliaBook, navigator: MainNavigator) -> some View {
+        ReaderView(model: session.viewModelFactory.readerViewModel(bookId: book.id)) { exit in
+            readingBook = nil
+            // Finishing the last book returns to its series (`navigator replace MainScreen(SeriesScreen)`).
+            if let exit { navigator.push(exit) }
         }
     }
 }
