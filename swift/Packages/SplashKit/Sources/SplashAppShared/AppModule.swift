@@ -284,12 +284,35 @@ public final class AppModule: AppSession {
     // MARK: - AppSession
 
     public func epubSource(for book: SplashBook) async -> EpubSource? {
-        if isOfflineMode {
-            guard let file = try? await offline.downloads.localFileURL(for: book.id) else { return nil }
+        // Local-first: a downloaded file is always preferred, even while online. Reading a book you have
+        // already downloaded must not depend on the network, and must not require flipping the whole app
+        // into offline mode first.
+        if let file = try? await offline.downloads.localFileURL(for: book.id) {
             return .local(file: file)
         }
+        guard !isOfflineMode else { return nil }
         let http = remoteApi.http
         return .remote(manifest: remoteApi.webPubManifestURL(book.id), headers: { http.authorizationHeaders(for: $0) })
+    }
+
+    /// The API a book should be *read* through. Downloaded books are served from the offline store whatever
+    /// the current mode, so they open with the network down; everything else keeps using the active API.
+    /// Read progress recorded this way lands in the offline store and syncs back like any offline progress.
+    public func readingApi(for book: SplashBook) async -> any KomgaApi {
+        guard !isOfflineMode else { return api }
+        guard (try? await offline.downloads.localFileURL(for: book.id)) != nil else { return api }
+        await alignOfflineUser()
+        return offline.api
+    }
+
+    public var offlineApi: any KomgaApi { offline.api }
+
+    /// Keeps the offline store's user context on the signed-in account, so progress saved while reading a
+    /// download is attributed to the right user instead of the root placeholder.
+    private func alignOfflineUser() async {
+        guard let me = authState.authenticatedUser, offlineSettings.userId != me.id else { return }
+        guard (try? await offline.store.read { try $0.users.find(me.id) }) != nil else { return }
+        try? await offlineSettings.putUserId(me.id)
     }
 
     /// Port of `SettingsNavigationViewModel.logout()`.
@@ -322,7 +345,8 @@ public final class AppModule: AppSession {
 extension AppModule: OfflineModeSwitching {
     /// Reads the offline store directly (not `api`), so the shelf is identical online and offline.
     public func downloadedSeries() async throws -> [KomgaSeries] {
-        try await offline.api.seriesApi
+        await alignOfflineUser()
+        return try await offline.api.seriesApi
             .getSeriesList(search: KomgaSeriesSearch(), pageRequest: KomgaPageRequest(unpaged: true))
             .content
     }

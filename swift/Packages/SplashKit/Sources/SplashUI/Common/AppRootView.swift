@@ -14,8 +14,12 @@ public protocol AppSession: LoginSession {
     /// Bumped when the active API changes (online ↔ offline); screens are rebuilt.
     var contentGeneration: Int { get }
     var epubSettings: EpubReaderSettingsRepository { get }
-    /// Local file when the book is downloaded and we are offline, the Komga manifest otherwise.
+    /// Local file when the book is downloaded, the Komga manifest otherwise.
     func epubSource(for book: SplashBook) async -> EpubSource?
+    /// API a book is read through — the offline store for downloaded books, the active API otherwise.
+    func readingApi(for book: SplashBook) async -> any KomgaApi
+    /// API backed purely by the offline store, used to browse downloaded content without a connection.
+    var offlineApi: any KomgaApi { get }
     /// nil when purchases are not configured (tests/previews) — offline is then unrestricted.
     var entitlements: OfflineEntitlementStore? { get }
 }
@@ -27,6 +31,8 @@ public struct AppRootView: View {
     @State private var loginModel: LoginViewModel
     @State private var mainModel: MainScreenViewModel?
     @State private var readingBook: SplashBook?
+    /// Resolved just before presenting the image reader (see `readingApi(for:)`).
+    @State private var readerApi: (any KomgaApi)?
     @State private var epubModel: EpubReaderModel?
     @State private var openedInitialBook = false
     @Environment(\.epubReaderPresenter) private var epubPresenter
@@ -99,6 +105,7 @@ public struct AppRootView: View {
             default:
                 DestinationView(
                     destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
+                    api: model.navigator.root == .downloads ? session.offlineApi : nil,
                     onRead: { open($0) })
             }
         }
@@ -121,7 +128,7 @@ public struct AppRootView: View {
     /// reader. EPUBs that Komga marks as DiViNa-compatible (fixed-layout comics) also use the image reader.
     private func open(_ book: SplashBook) {
         guard book.media.mediaProfile == .epub, !book.media.epubDivinaCompatible else {
-            readingBook = book
+            Task { readerApi = await session.readingApi(for: book); readingBook = book }
             return
         }
         Task {
@@ -145,8 +152,9 @@ public struct AppRootView: View {
 
     /// Image reader pushed over the main navigator (Kotlin: `navigator.parent.push(ImageReaderScreen)`).
     private func reader(_ book: SplashBook, navigator: MainNavigator) -> some View {
-        ReaderView(model: session.viewModelFactory.readerViewModel(bookId: book.id)) { exit in
+        ReaderView(model: session.viewModelFactory.readerViewModel(bookId: book.id, api: readerApi)) { exit in
             readingBook = nil
+            readerApi = nil
             // Finishing the last book returns to its series (`navigator replace MainScreen(SeriesScreen)`).
             if let exit { navigator.push(exit) }
         }

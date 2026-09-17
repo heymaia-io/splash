@@ -46,16 +46,17 @@ public final class ViewModelFactory {
         LibraryViewModel(api: api, libraryId: libraryId, authState: authState, settings: settings, events: events)
     }
 
-    func seriesViewModel(seriesId: KomgaSeriesId) -> SeriesViewModel {
-        SeriesViewModel(seriesId: seriesId, api: api, authState: authState, settings: settings, events: events)
+    func seriesViewModel(seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil) -> SeriesViewModel {
+        SeriesViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, settings: settings,
+                        events: events)
     }
 
-    func bookViewModel(bookId: KomgaBookId) -> BookViewModel {
-        BookViewModel(bookId: bookId, api: api, authState: authState, events: events)
+    func bookViewModel(bookId: KomgaBookId, api: (any KomgaApi)? = nil) -> BookViewModel {
+        BookViewModel(bookId: bookId, api: api ?? self.api, authState: authState, events: events)
     }
 
-    func oneshotViewModel(seriesId: KomgaSeriesId) -> OneshotViewModel {
-        OneshotViewModel(seriesId: seriesId, api: api, authState: authState, events: events)
+    func oneshotViewModel(seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil) -> OneshotViewModel {
+        OneshotViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, events: events)
     }
 
     func collectionViewModel(collectionId: KomgaCollectionId) -> CollectionViewModel {
@@ -66,8 +67,12 @@ public final class ViewModelFactory {
         ReadListViewModel(readListId: readListId, api: api, settings: settings, events: events)
     }
 
-    public func readerViewModel(bookId: KomgaBookId, siblings: BookSiblingsContext = .series) -> ReaderViewModel {
-        ReaderViewModel(bookId: bookId, api: api, settings: imageReaderSettings, siblings: siblings)
+    /// `api` overrides the active API for this reader only — used to read a downloaded book from the
+    /// offline store while the rest of the app stays online.
+    public func readerViewModel(
+        bookId: KomgaBookId, siblings: BookSiblingsContext = .series, api: (any KomgaApi)? = nil
+    ) -> ReaderViewModel {
+        ReaderViewModel(bookId: bookId, api: api ?? self.api, settings: imageReaderSettings, siblings: siblings)
     }
 
     func searchViewModel(query: String?) -> SearchViewModel {
