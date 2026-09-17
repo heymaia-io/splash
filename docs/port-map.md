@@ -36,7 +36,10 @@ Xcode wiring. Dependency direction is enforced by `Package.swift`.
 | F10 offline API | ⬜ | `OfflineBookStateProvider` seam already consumed by remote APIs |
 | F11 downloads | ⬜ | `RemoteBookApi.bookFileRequest` seam ready; server has no Range support |
 | F12 sync | ⬜ | |
-| F13 polish | ⬜ | |
+| F13 polish | 🟡 | Settings screens, theme, reader keyboard shortcuts, privacy manifest (in progress) |
+| F14 PDF | 🟡 | On-device vector rendering of Komga single-page PDFs; offline extraction pending |
+| F15 EPUB | ⬜ | Readium Swift Toolkit over Komga WebPub endpoints / local file |
+| F16 offline purchase | ⬜ | StoreKit 2 one-time $3.99 unlock gating downloads/offline mode; rename app (Apache-2.0 §6) |
 
 ## Symbol map
 
