@@ -34,6 +34,7 @@ Splash is an unofficial, independent client and is not affiliated with or endors
 | `fixtures/komga` | Dockerized Komga instance with deterministic seed data, used by the contract tests |
 | `tools/wire_contract_check.py` | Checks the client's requests against `fixtures/komga/openapi.json` |
 | `graphify-out/` | Knowledge graph of the repository (see `CLAUDE.md`) |
+| `TRADEMARKS.md` | What the code license does and does not grant over the name and icon |
 
 `SplashKit` targets, in dependency order:
 
@@ -89,7 +90,12 @@ The fixture server listens on `http://localhost:25601` with the credentials docu
 
 ## Attribution and licensing
 
-Splash is licensed under the Apache License 2.0 — see [`LICENSE`](LICENSE).
+Splash is licensed under the Apache License 2.0 — see [`LICENSE`](LICENSE). You may use, modify and
+redistribute it, including commercially.
+
+The **name "Splash" and the app icon are not covered by that license** (Apache 2.0, Section 6). Fork the code
+freely, but publish your fork under a different name and a different icon — see
+[`TRADEMARKS.md`](TRADEMARKS.md).
 
 It is a derivative work of [Komelia](https://github.com/Snd-R/Komelia) (Apache 2.0) and of
 [komga-client](https://github.com/Snd-R/komga-client) (MIT), both by Snd-R. The original Kotlin source was

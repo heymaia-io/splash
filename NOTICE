@@ -19,6 +19,10 @@ Komga (https://github.com/gotson/komga) is the media server this client
 talks to. Splash is an unofficial, independent client and is not affiliated
 with or endorsed by the Komga project.
 
+"Splash" and "HeyMaia", and the Splash app icon and logo, are brand features
+of HeyMaia. As stated in Section 6 of the Apache License 2.0, this license
+grants no permission to use them. See TRADEMARKS.md.
+
 --------------------------------------------------------------------------
 
 Third-party dependencies distributed with the application, with their
