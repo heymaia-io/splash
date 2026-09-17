@@ -18,7 +18,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
-        .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.19"),
+        // Readium's ZIPFoundation fork (same package identity as upstream; Readium requires it).
+        .package(url: "https://github.com/readium/ZIPFoundation.git", from: "3.0.1"),
     ],
     targets: [
         // komelia-domain/komga-api (+ the wire models of io.github.snd-r:komga-client)
@@ -30,7 +31,7 @@ let package = Package(
         // komelia-domain/offline (domain + repository protocols; storage-agnostic)
         .target(
             name: "KomeliaOffline",
-            dependencies: ["KomgaAPI", "KomeliaCore", .product(name: "ZIPFoundation", package: "ZIPFoundation")]),
+            dependencies: ["KomgaAPI", "KomeliaCore", .product(name: "ReadiumZIPFoundation", package: "ZIPFoundation")]),
         // komelia-infra/database — implements the Core/Offline repository protocols (same direction as Gradle)
         .target(
             name: "KomeliaDB",
@@ -41,7 +42,9 @@ let package = Package(
         .target(name: "KomeliaImage", dependencies: ["KomgaAPI", "KomeliaCore"]),
 
         // komelia-ui — SwiftUI screens + view models (depends only on protocols, never on concrete APIs)
-        .target(name: "KomeliaUI", dependencies: ["KomgaAPI", "KomeliaCore", "KomeliaImage", "KomeliaOffline"]),
+        .target(
+            name: "KomeliaUI",
+            dependencies: ["KomgaAPI", "KomeliaCore", "KomeliaImage", "KomeliaOffline"]),
         // komelia-app/shared — composition root (AppModule)
         .target(
             name: "KomeliaAppShared",

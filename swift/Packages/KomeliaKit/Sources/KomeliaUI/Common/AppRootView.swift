@@ -13,6 +13,9 @@ public protocol AppSession: LoginSession {
     var isOfflineMode: Bool { get }
     /// Bumped when the active API changes (online ↔ offline); screens are rebuilt.
     var contentGeneration: Int { get }
+    var epubSettings: EpubReaderSettingsRepository { get }
+    /// Local file when the book is downloaded and we are offline, the Komga manifest otherwise.
+    func epubSource(for book: KomeliaBook) async -> EpubSource?
 }
 
 /// Port of `MainView.kt`'s root navigator: Login ↔ main shell, driven by the authentication state.
@@ -23,6 +26,9 @@ public struct AppRootView: View {
     @State private var mainModel: MainScreenViewModel?
     @State private var showSettings = false
     @State private var readingBook: KomeliaBook?
+    @State private var epubModel: EpubReaderModel?
+    @State private var openedInitialBook = false
+    @Environment(\.epubReaderPresenter) private var epubPresenter
     @Environment(\.scenePhase) private var scenePhase
 
     private let initialBook: KomeliaBook?
@@ -31,7 +37,6 @@ public struct AppRootView: View {
         self.session = session
         self.initialBook = initialBook
         _loginModel = State(initialValue: LoginViewModel(session: session))
-        _readingBook = State(initialValue: initialBook)
     }
 
     public var body: some View {
@@ -79,7 +84,13 @@ public struct AppRootView: View {
         MainShellView(model: model, onOpenSettings: { showSettings = true }) { destination in
             DestinationView(
                 destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
-                onRead: { readingBook = $0 })
+                onRead: { open($0) })
+        }
+        .task {
+            if let initialBook, !openedInitialBook {
+                openedInitialBook = true
+                open(initialBook)
+            }
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(session: session, extraSections: AnyView(
@@ -93,9 +104,37 @@ public struct AppRootView: View {
         }
         #if os(iOS)
         .fullScreenCover(item: $readingBook) { book in reader(book, navigator: model.navigator) }
+        .fullScreenCover(item: $epubModel) { epub in epubReader(epub) }
         #else
         .sheet(item: $readingBook) { book in reader(book, navigator: model.navigator) }
+        .sheet(item: $epubModel) { epub in epubReader(epub) }
         #endif
+    }
+
+    /// EPUB books go to the Readium reader (plan Phase 15); everything else (CBZ, images, PDF) to the image
+    /// reader. EPUBs that Komga marks as DiViNa-compatible (fixed-layout comics) also use the image reader.
+    private func open(_ book: KomeliaBook) {
+        guard book.media.mediaProfile == .epub, !book.media.epubDivinaCompatible else {
+            readingBook = book
+            return
+        }
+        Task {
+            guard let source = await session.epubSource(for: book) else { return }
+            epubModel = EpubReaderModel(
+                book: book, source: source, api: session.viewModelFactory.apiProvider(),
+                settings: session.epubSettings)
+        }
+    }
+
+    @ViewBuilder private func epubReader(_ model: EpubReaderModel) -> some View {
+        if let epubPresenter {
+            epubPresenter.makeReader(model: model) { epubModel = nil }
+        } else {
+            NavigationStack {
+                ContentUnavailableView("EPUB reader unavailable", systemImage: "book.closed")
+                    .toolbar { Button("Close") { epubModel = nil } }
+            }
+        }
     }
 
     /// Image reader pushed over the main navigator (Kotlin: `navigator.parent.push(ImageReaderScreen)`).

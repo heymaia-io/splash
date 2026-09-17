@@ -157,7 +157,7 @@ public struct OfflineBookApi: KomgaBookApi {
 
     public func getPage(_ bookId: KomgaBookId, page: Int) async throws -> Data {
         let (book, media) = try await bookAndMedia(bookId)
-        return try extractors.bookPage(book: book, media: media, page: page)
+        return try await extractors.bookPage(book: book, media: media, page: page)
     }
 
     /// Kotlin returns the raw page too ("resize is handled in client").
@@ -201,7 +201,7 @@ public struct OfflineBookApi: KomgaBookApi {
         guard media.mediaProfile == .epub else {
             throw OfflineError.invalidState("Unsupported media profile \(String(describing: media.mediaProfile))")
         }
-        return try extractors.fileContent(book: book, media: media, fileName: resourceName)
+        return try await extractors.fileContent(book: book, media: media, fileName: resourceName)
     }
 }
 

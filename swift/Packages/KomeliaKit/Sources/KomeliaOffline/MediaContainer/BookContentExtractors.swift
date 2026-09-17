@@ -1,56 +1,55 @@
 import Foundation
 import KomgaAPI
 import Synchronization
-import ZIPFoundation
+import ReadiumZIPFoundation
 
 /// Port of `snd.komelia.offline.mediacontainer.DivinaExtractor` (strategy per container media type).
 public protocol DivinaExtractor: Sendable {
     var mediaTypes: [String] { get }
-    func entryBytes(file: URL, entryName: String) throws -> Data
+    func entryBytes(file: URL, entryName: String) async throws -> Data
 }
 
 /// Port of `EpubExtractor`.
 public protocol EpubExtractor: Sendable {
-    func entryBytes(file: URL, entryName: String) throws -> Data
+    func entryBytes(file: URL, entryName: String) async throws -> Data
 }
 
-/// Port of the jvm `ZipExtractor` / `DivinaZipExtractor` / `EpubZipExtractor` on ZIPFoundation.
+/// Port of the jvm `ZipExtractor` / `DivinaZipExtractor` / `EpubZipExtractor` on Readium's ZIPFoundation fork
+/// (async API; the fork is required because Readium, used for EPUB, depends on it).
 ///
 /// [NUEVO] Kotlin reopened the archive (and re-parsed its central directory) for every page. Readers request pages
-/// sequentially from the same book, so the last few opened archives are cached. ZIPFoundation's `Archive` is not
-/// thread-safe; all access goes through the mutex.
-public final class ZipEntryExtractor: DivinaExtractor, EpubExtractor {
-    public let mediaTypes = ["application/zip"]
+/// sequentially from the same book, so the last few opened archives are cached. `Archive` is not thread-safe;
+/// the actor serializes all access.
+public actor ZipEntryExtractor: DivinaExtractor, EpubExtractor {
+    public nonisolated let mediaTypes = ["application/zip"]
 
-    private struct CachedArchive: @unchecked Sendable {  // only touched while holding `cache`'s lock
+    private struct CachedArchive {
         let url: URL
         let modificationDate: Date?
         let archive: Archive
     }
 
-    private let cache = Mutex<[CachedArchive]>([])
+    private var entries: [CachedArchive] = []
     private let capacity: Int
 
     public init(capacity: Int = 2) { self.capacity = max(1, capacity) }
 
-    public func entryBytes(file: URL, entryName: String) throws -> Data {
-        try cache.withLock { entries in
-            let archive = try Self.archive(for: file, in: &entries, capacity: capacity)
-            guard let entry = archive[entryName] else {
-                throw OfflineError.notFound("zip entry does not exist: \(entryName)")
-            }
-            var data = Data(capacity: Int(clamping: entry.uncompressedSize))
-            _ = try archive.extract(entry, skipCRC32: true) { data.append($0) }
-            return data
+    public func entryBytes(file: URL, entryName: String) async throws -> Data {
+        let archive = try await archive(for: file)
+        guard let entry = try await archive.get(entryName) else {
+            throw OfflineError.notFound("zip entry does not exist: \(entryName)")
         }
+        let buffer = DataBuffer()
+        _ = try await archive.extract(entry, skipCRC32: true) { chunk in await buffer.append(chunk) }
+        return await buffer.data
     }
 
     /// Drops cached handles (e.g. before deleting a file).
     public func evict(file: URL) {
-        cache.withLock { entries in entries.removeAll { $0.url == file.standardizedFileURL } }
+        entries.removeAll { $0.url == file.standardizedFileURL }
     }
 
-    private static func archive(for file: URL, in entries: inout [CachedArchive], capacity: Int) throws -> Archive {
+    private func archive(for file: URL) async throws -> Archive {
         let url = file.standardizedFileURL
         let modified = (try? FileManager.default.attributesOfItem(atPath: url.path(percentEncoded: false)))?[
             .modificationDate] as? Date
@@ -64,11 +63,17 @@ public final class ZipEntryExtractor: DivinaExtractor, EpubExtractor {
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
             throw OfflineError.fileUnavailable(url.path(percentEncoded: false))
         }
-        let archive = try Archive(url: url, accessMode: .read)
+        let archive = try await Archive(url: url, accessMode: .read)
         entries.insert(CachedArchive(url: url, modificationDate: modified, archive: archive), at: 0)
         if entries.count > capacity { entries.removeLast(entries.count - capacity) }
         return archive
     }
+}
+
+/// Accumulates extracted chunks (the fork's consumer closure is `@Sendable async`).
+private actor DataBuffer {
+    var data = Data()
+    func append(_ chunk: Data) { data.append(chunk) }
 }
 
 /// Port of `BookContentExtractors`: picks the extractor for a book's container and returns raw page bytes.
@@ -98,18 +103,18 @@ public struct BookContentExtractors: Sendable {
     }
 
     /// `getBookPage(book, media, page)` — `page` is 1-based.
-    public func bookPage(book: OfflineBook, media: OfflineMedia, page: Int) throws -> Data {
+    public func bookPage(book: OfflineBook, media: OfflineMedia, page: Int) async throws -> Data {
         guard media.status == .ready else { throw OfflineError.invalidState("Media is not ready") }
         let file = fileLocator.fileURL(for: book.fileDownloadPath)
         switch media.mediaProfile {
         case .divina:
-            return try divinaExtractor(for: media).entryBytes(file: file, entryName: try entryName(media, page))
+            return try await divinaExtractor(for: media).entryBytes(file: file, entryName: try entryName(media, page))
         case .epub:
             guard media.epubDivinaCompatible else {
                 throw OfflineError.invalidState("Epub profile does not support getting page content")
             }
             guard let epubExtractor else { throw OfflineError.invalidState("Epub content is not supported") }
-            return try epubExtractor.entryBytes(file: file, entryName: try entryName(media, page))
+            return try await epubExtractor.entryBytes(file: file, entryName: try entryName(media, page))
         case .pdf:
             // [NUEVO] replaces Kotlin's TODO(): a one-page PDF, like the server's page endpoint.
             guard let pdfExtractor else { throw KomgaAPIError.unsupported("PDF pages are not supported") }
@@ -130,13 +135,13 @@ public struct BookContentExtractors: Sendable {
     }
 
     /// `getFileContent(book, media, filename)`
-    public func fileContent(book: OfflineBook, media: OfflineMedia, fileName: String) throws -> Data {
+    public func fileContent(book: OfflineBook, media: OfflineMedia, fileName: String) async throws -> Data {
         let file = fileLocator.fileURL(for: book.fileDownloadPath)
         switch media.mediaProfile {
-        case .divina: return try divinaExtractor(for: media).entryBytes(file: file, entryName: fileName)
+        case .divina: return try await divinaExtractor(for: media).entryBytes(file: file, entryName: fileName)
         case .epub:
             guard let epubExtractor else { throw OfflineError.invalidState("Epub content is not supported") }
-            return try epubExtractor.entryBytes(file: file, entryName: fileName)
+            return try await epubExtractor.entryBytes(file: file, entryName: fileName)
         case .pdf, nil:
             throw OfflineError.invalidState("Extractor does not support extraction of files")
         }

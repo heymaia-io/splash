@@ -124,3 +124,52 @@ struct ReaderIntegrationTests {
         #expect(image?.originalSize == CGSize(width: 800, height: 6000))
     }
 }
+
+@MainActor
+@Suite struct EpubReaderModelTests {
+    @Test func hrefMappingBetweenKomgaAndReader() throws {
+        let book = try JSONDecoder.komga.decode(KomgaBook.self, from: Self.bookJSON)
+        let model = EpubReaderModel(
+            book: KomeliaBook(book: book),
+            source: .remote(manifest: URL(string: "http://h:1/api/v1/books/B/manifest")!, headers: { _ in [:] }),
+            api: RemoteKomgaApi(http: KomgaHTTPClient(baseURL: { URL(string: "http://h:1")! })),
+            settings: SettingsState(initial: EpubReaderSettings()) { _ in })
+        let reader = model.toReader(R2Locator(href: "text/ch1.html", type: "application/xhtml+xml",
+                                              locations: R2Location(progression: 0.5, totalProgression: 0.25)))
+        #expect(reader.href == "text/ch1.html")
+        #expect(model.toReader(R2Locator(href: "http://h:1/api/v1/books/B/resource/a.html", type: "t")).href == "a.html")
+        #expect(reader.totalProgression == 0.25)
+        let absolute = EpubLocation(href: "http://h:1/api/v1/books/B/resource/text/ch1.html", type: "t",
+                                    progression: 0.5, totalProgression: 0.25, position: nil)
+        let komga = model.toKomga(absolute)
+        #expect(komga.href == "text/ch1.html")
+        #expect(komga.locations?.progression == 0.5)
+    }
+
+    @Test func localSourceKeepsRelativeHrefs() throws {
+        let book = try JSONDecoder.komga.decode(KomgaBook.self, from: Self.bookJSON)
+        let model = EpubReaderModel(
+            book: KomeliaBook(book: book), source: .local(file: URL(filePath: "/tmp/b.epub")),
+            api: RemoteKomgaApi(http: KomgaHTTPClient(baseURL: { URL(string: "http://h:1")! })),
+            settings: SettingsState(initial: EpubReaderSettings()) { _ in })
+        let location = EpubLocation(href: "/OEBPS/c.xhtml", type: "t", progression: nil, totalProgression: nil, position: 3)
+        #expect(model.toKomga(location).href == "OEBPS/c.xhtml")
+        #expect(model.toReader(R2Locator(href: "OEBPS/c.xhtml", type: "t")).href == "OEBPS/c.xhtml")
+    }
+
+    static let bookJSON = Data(#"""
+    {"id":"B","seriesId":"S","seriesTitle":"S","libraryId":"L","name":"n","url":"/x.epub","number":1,
+     "created":"2026-01-01T00:00:00Z","lastModified":"2026-01-01T00:00:00Z","fileLastModified":"2026-01-01T00:00:00Z",
+     "sizeBytes":1,"size":"1 B","media":{"status":"READY","mediaType":"application/epub+zip","pagesCount":0,
+     "comment":"","epubDivinaCompatible":false,"epubIsKepub":false,"mediaProfile":"EPUB"},
+     "metadata":{"title":"t","summary":"","number":"1","numberSort":1,"releaseDate":null,"authors":[],"tags":[],
+     "isbn":"","links":[],"titleLock":false,"summaryLock":false,"numberLock":false,"numberSortLock":false,
+     "releaseDateLock":false,"authorsLock":false,"tagsLock":false,"isbnLock":false,"linksLock":false,
+     "created":"2026-01-01T00:00:00Z","lastModified":"2026-01-01T00:00:00Z"},
+     "readProgress":null,"deleted":false,"fileHash":"","oneshot":false}
+    """#.utf8)
+}
+
+extension JSONDecoder {
+    static var komga: JSONDecoder { KomgaJSON.makeDecoder() }
+}

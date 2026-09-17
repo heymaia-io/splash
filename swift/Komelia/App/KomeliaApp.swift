@@ -1,4 +1,5 @@
 import KomeliaAppShared
+import KomeliaEpubKit
 import KomeliaUI
 import KomgaAPI
 import SwiftUI
@@ -66,11 +67,13 @@ struct BootstrapView: View {
     @State private var module: AppModule?
     @State private var error: Error?
     @State private var initialBook: KomeliaBook?
+    private let epubPresenter = ReadiumEpubReaderPresenter()
 
     var body: some View {
         Group {
             if let module {
                 AppRootView(session: module, initialBook: initialBook)
+                    .environment(\.epubReaderPresenter, epubPresenter)
             } else if let error {
                 ContentUnavailableView(
                     "Komelia failed to start", systemImage: "exclamationmark.triangle",

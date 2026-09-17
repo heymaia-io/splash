@@ -40,6 +40,7 @@ public final class AppModule: AppSession {
     public let settings: CommonSettingsRepository
     public let imageReaderSettings: ImageReaderSettingsRepository
     public let homeFilters: HomeScreenFilterRepository
+    public let epubSettings: EpubReaderSettingsRepository
     public let authState = KomgaAuthenticationState()
     public let events = KomgaEventBroadcaster()
     public let thumbnails: ThumbnailLoader
@@ -75,9 +76,10 @@ public final class AppModule: AppSession {
 
     private init(
         settings: CommonSettingsRepository, imageReaderSettings: ImageReaderSettingsRepository,
-        homeFilters: HomeScreenFilterRepository, offlineSettings: OfflineSettingsStateRepository,
-        storage: Storage
+        homeFilters: HomeScreenFilterRepository, epubSettings: EpubReaderSettingsRepository,
+        offlineSettings: OfflineSettingsStateRepository, storage: Storage
     ) {
+        self.epubSettings = epubSettings
         self.settings = settings
         self.imageReaderSettings = imageReaderSettings
         self.homeFilters = homeFilters
@@ -134,11 +136,13 @@ public final class AppModule: AppSession {
             from: GRDBImageReaderSettingsStore(db.app), default: ImageReaderSettings())
         let filters = try await SettingsState.load(
             from: GRDBHomeScreenFilterStore<HomeScreenFilter>(db.app), default: HomeScreenFilter.defaults)
+        let epubSettings = try await SettingsState.load(
+            from: GRDBEpubReaderSettingsStore<EpubReaderSettings>(db.app), default: EpubReaderSettings())
         let offlineSettings = try await OfflineSettingsStateRepository.load(
             database: db, defaultDownloadDirectory: storage.downloadRoot)
         let module = AppModule(
             settings: settings, imageReaderSettings: readerSettings, homeFilters: filters,
-            offlineSettings: offlineSettings, storage: storage)
+            epubSettings: epubSettings, offlineSettings: offlineSettings, storage: storage)
         if let accessPolicy { module.accessPolicy = accessPolicy }
         await module.cookieStore.loadRememberMeCookie()
         await module.apiKeyStore.loadStoredApiKey(serverURL: module.settings.value.serverUrl)
@@ -213,6 +217,7 @@ public final class AppModule: AppSession {
         guard let login = environment["KOMELIA_DEBUG_LOGIN"] else { return nil }
         let parts = login.split(separator: "|", maxSplits: 2).map(String.init)
         guard parts.count == 3 else { return nil }
+        if isOfflineMode { try? await setOfflineMode(false) }
         try? await settings.set(\.serverUrl, parts[0])
         await switchServer(to: parts[0])
         guard let user = try? await remoteApi.userApi.getMe(username: parts[1], password: parts[2], rememberMe: true),
@@ -256,6 +261,15 @@ public final class AppModule: AppSession {
     }
 
     // MARK: - AppSession
+
+    public func epubSource(for book: KomeliaBook) async -> EpubSource? {
+        if isOfflineMode {
+            guard let file = try? await offline.downloads.localFileURL(for: book.id) else { return nil }
+            return .local(file: file)
+        }
+        let http = remoteApi.http
+        return .remote(manifest: remoteApi.webPubManifestURL(book.id), headers: { http.authorizationHeaders(for: $0) })
+    }
 
     /// Port of `SettingsNavigationViewModel.logout()`.
     public func logout() async {

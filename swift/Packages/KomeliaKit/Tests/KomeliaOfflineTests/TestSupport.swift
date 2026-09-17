@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 import KomeliaDB
 import KomgaAPI
-import ZIPFoundation
+import ReadiumZIPFoundation
 
 @testable import KomeliaOffline
 
@@ -170,13 +170,13 @@ enum GeneratedMedia {
         base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")!
 
     /// A CBZ (zip) whose entries all contain `png`, with a distinct trailing byte per entry so pages differ.
-    static func cbz(entries: [String]) throws -> Data {
+    static func cbz(entries: [String]) async throws -> Data {
         let url = FileManager.default.temporaryDirectory.appending(path: "gen-\(UUID().uuidString).cbz")
         defer { try? FileManager.default.removeItem(at: url) }
-        let archive = try Archive(url: url, accessMode: .create)
+        let archive = try await Archive(url: url, accessMode: .create)
         for (index, name) in entries.enumerated() {
             let data = png + Data([UInt8(index)])
-            try archive.addEntry(
+            try await archive.addEntry(
                 with: name, type: .file, uncompressedSize: Int64(data.count), compressionMethod: .deflate,
                 provider: { position, size in data.subdata(in: Int(position)..<Int(position) + size) })
         }

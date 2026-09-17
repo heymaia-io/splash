@@ -87,3 +87,22 @@ public struct ImageReaderSettings: Codable, Hashable, Sendable {
 
     public init() {}
 }
+
+/// [NUEVO] EPUB reader preferences (plan Phase 15). The Kotlin app stored opaque settings blobs of its two
+/// embedded web readers; the iOS reader is native (Readium), so its preferences are modeled directly.
+public struct EpubReaderSettings: Codable, Hashable, Sendable {
+    public enum Theme: String, Codable, Sendable, CaseIterable { case light, sepia, dark }
+    public enum FontFamily: String, Codable, Sendable, CaseIterable { case publisher, serif, sansSerif, openDyslexic }
+
+    public var fontSize: Double = 1.0
+    public var fontFamily: FontFamily = .publisher
+    public var theme: Theme = .dark
+    public var scroll: Bool = false
+    public var lineHeight: Double? = nil
+    public var pageMargins: Double = 1.0
+    public var publisherStyles: Bool = true
+
+    public init() {}
+}
+
+public typealias EpubReaderSettingsRepository = SettingsState<EpubReaderSettings>

@@ -68,12 +68,11 @@ struct PDFPageRenderer: PageRenderer, @unchecked Sendable {
         context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         context.interpolationQuality = .high
-        let target = CGRect(x: 0, y: 0, width: width, height: height)
-        let transform = page.getDrawingTransform(.cropBox, rect: target, rotate: 0, preserveAspectRatio: true)
-        // getDrawingTransform never scales up; apply the remaining factor around the origin.
-        let fitted = CGRect(origin: .zero, size: size).applying(transform)
-        let upscale = min(CGFloat(width) / max(fitted.width, 1), CGFloat(height) / max(fitted.height, 1))
-        context.scaleBy(x: upscale, y: upscale)
+        // Scale first, then map the (rotated) crop box onto a point-sized rect: getDrawingTransform never
+        // scales up, and applying the scale after its centering translation would push the page off-canvas.
+        context.scaleBy(x: CGFloat(width) / size.width, y: CGFloat(height) / size.height)
+        let transform = page.getDrawingTransform(
+            .cropBox, rect: CGRect(origin: .zero, size: size), rotate: 0, preserveAspectRatio: true)
         context.concatenate(transform)
         context.drawPDFPage(page)
         return context.makeImage()

@@ -49,7 +49,7 @@ struct OfflineKomgaApiTests {
             libraries: [Self.comics, Self.manga], series: [Self.alpha, Self.beta, Self.gamma], user: Fixtures.user,
             source: source)
         try await env.settings.putUserId(Fixtures.user.id)
-        let cbz = try GeneratedMedia.cbz(entries: ["p1.png", "p2.png"])
+        let cbz = try await GeneratedMedia.cbz(entries: ["p1.png", "p2.png"])
         try await env.importBook(Self.b1, file: cbz, userId: Fixtures.user.id, source: source)
         try await env.importBook(Self.b2, file: cbz, userId: Fixtures.user.id, source: source)
         try await env.importBook(Self.b3, userId: Fixtures.user.id, source: source)

@@ -88,10 +88,11 @@ final class SpreadScrollView: UIScrollView, UIScrollViewDelegate {
         }
         container.frame = CGRect(origin: .zero, size: content)
         contentSize = content
-        // Initial position: top edge; horizontally the reading-direction start (`addPan` to limits).
-        let x = config.rightToLeft ? max(content.width - bounds.width, 0) : 0
-        contentOffset = CGPoint(x: x, y: 0)
         centerContent()
+        // Initial position: top edge; horizontally the reading-direction start (`addPan` to limits).
+        // Offsets are relative to the centering insets, otherwise small pages end up flush left/top.
+        let x = config.rightToLeft ? max(content.width - bounds.width, 0) : 0
+        contentOffset = CGPoint(x: x - contentInset.left, y: -contentInset.top)
         refreshBitmaps()
     }
 

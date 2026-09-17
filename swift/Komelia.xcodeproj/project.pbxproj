@@ -10,6 +10,7 @@
 		A10000000000000000000101 /* KomeliaAppShared in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000201 /* KomeliaAppShared */; };
 		A10000000000000000000102 /* KomeliaUI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000202 /* KomeliaUI */; };
 		A10000000000000000000103 /* KomgaAPI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000203 /* KomgaAPI */; };
+		A10000000000000000000104 /* KomeliaEpubKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000204 /* KomeliaEpubKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 				A10000000000000000000101 /* KomeliaAppShared in Frameworks */,
 				A10000000000000000000102 /* KomeliaUI in Frameworks */,
 				A10000000000000000000103 /* KomgaAPI in Frameworks */,
+				A10000000000000000000104 /* KomeliaEpubKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -73,6 +75,7 @@
 				A10000000000000000000201 /* KomeliaAppShared */,
 				A10000000000000000000202 /* KomeliaUI */,
 				A10000000000000000000203 /* KomgaAPI */,
+				A10000000000000000000204 /* KomeliaEpubKit */,
 			);
 			productName = Komelia;
 			productReference = A10000000000000000000301 /* Komelia.app */;
@@ -105,6 +108,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A10000000000000000000C01 /* XCLocalSwiftPackageReference "Packages/KomeliaKit" */,
+				A10000000000000000000C02 /* XCLocalSwiftPackageReference "Packages/KomeliaEpubKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A10000000000000000000602 /* Products */;
@@ -276,6 +280,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/KomeliaKit;
 		};
+		A10000000000000000000C02 /* XCLocalSwiftPackageReference "Packages/KomeliaEpubKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/KomeliaEpubKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -290,6 +298,10 @@
 		A10000000000000000000203 /* KomgaAPI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = KomgaAPI;
+		};
+		A10000000000000000000204 /* KomeliaEpubKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KomeliaEpubKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

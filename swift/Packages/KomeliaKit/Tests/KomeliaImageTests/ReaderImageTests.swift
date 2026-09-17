@@ -94,6 +94,18 @@ import UniformTypeIdentifiers
         let zoomed = try #require(await image.bitmap(forDisplayedPixels: CGSize(width: 3000, height: 3900)))
         #expect(zoomed.pixelSize.height > 1584)  // vectors can exceed natural size
         #expect(abs(zoomed.pixelSize.width / zoomed.pixelSize.height - 612.0 / 792.0) < 0.01)
+        // The grey box must actually be drawn (regression: page rendered off-canvas → all white).
+        #expect(Self.centerGray(zoomed.image) < 0.5)
+    }
+
+    static func centerGray(_ image: CGImage) -> Double {
+        var pixel = [UInt8](repeating: 0, count: 4)
+        let context = CGContext(
+            data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+        context.draw(image, in: CGRect(x: -CGFloat(image.width) / 2, y: -CGFloat(image.height) / 2,
+                                       width: CGFloat(image.width), height: CGFloat(image.height)))
+        return Double(pixel[0]) / 255
     }
 
     @Test func pdfCropBordersRemovesWhiteMargin() throws {

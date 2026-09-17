@@ -82,6 +82,15 @@ public final class KomgaHTTPClient: Sendable {
         return request
     }
 
+    /// Auth headers (`X-API-Key` / `Cookie`) for requests made by other HTTP stacks (e.g. Readium's EPUB
+    /// resource loader), so they authenticate exactly like this client.
+    public func authorizationHeaders(for url: URL) -> [String: String] {
+        var headers: [String: String] = ["User-Agent": userAgent]
+        if let key = apiKey() { headers["X-API-Key"] = key }
+        if let cookie = cookieStore?.cookieHeader(for: url) { headers["Cookie"] = cookie }
+        return headers
+    }
+
     public func jsonRequest<Body: Encodable>(
         _ method: HTTPMethod, _ path: String, query: [URLQueryItem] = [], body: Body
     ) throws -> URLRequest {

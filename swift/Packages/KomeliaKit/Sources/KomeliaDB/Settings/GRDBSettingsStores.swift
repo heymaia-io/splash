@@ -166,3 +166,34 @@ private struct ImageReaderSettingsRow: FetchableRecord, PersistableRecord {
         container["volume_keys_navigation"] = settings.volumeKeysNavigation
     }
 }
+
+/// EPUB preferences in the `EpubReaderSettings` row `book_id = 'DEFAULT'` (JSON in `komga_settings_json`,
+/// `reader_type = 'READIUM'`). The ttsu column is kept for schema compatibility with the Kotlin table.
+public struct GRDBEpubReaderSettingsStore<Value: Codable & Sendable>: SettingsStore {
+    private let writer: any DatabaseWriter
+
+    public init(_ writer: any DatabaseWriter) { self.writer = writer }
+
+    public func load() async throws -> Value? {
+        let json = try await writer.read { db in
+            try String.fetchOne(
+                db, sql: "SELECT komga_settings_json FROM EpubReaderSettings WHERE book_id = 'DEFAULT'")
+        }
+        guard let json else { return nil }
+        return try? JSONDecoder().decode(Value.self, from: Data(json.utf8))
+    }
+
+    public func save(_ value: Value) async throws {
+        let json = String(decoding: try JSONEncoder().encode(value), as: UTF8.self)
+        try await writer.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO EpubReaderSettings (book_id, reader_type, komga_settings_json, ttsu_settings_json)
+                    VALUES ('DEFAULT', 'READIUM', ?, '{}')
+                    ON CONFLICT (book_id) DO UPDATE SET
+                        reader_type = excluded.reader_type, komga_settings_json = excluded.komga_settings_json
+                    """,
+                arguments: [json])
+        }
+    }
+}

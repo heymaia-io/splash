@@ -20,7 +20,7 @@ public struct RemoteKomgaApi: KomgaApi {
     /// Concrete book API, exposed for the download seam (`bookFileRequest`) only.
     public let remoteBookApi: RemoteBookApi
 
-    private let http: KomgaHTTPClient
+    public let http: KomgaHTTPClient
     private let offlineEvents: KomgaEventBroadcaster?
 
     public init(
@@ -43,6 +43,11 @@ public struct RemoteKomgaApi: KomgaApi {
         settingsApi = RemoteSettingsApi(http: http)
         tasksApi = RemoteTaskApi(http: http)
         userApi = RemoteUserApi(http: http)
+    }
+
+    /// `GET api/v1/books/{id}/manifest` — Readium WebPub manifest used by the EPUB reader.
+    public func webPubManifestURL(_ bookId: KomgaBookId) -> URL {
+        http.url("api/v1/books/\(bookId)/manifest")
     }
 
     public func createSSESession() async throws -> any KomgaSSESession {
