@@ -58,8 +58,12 @@ Xcode wiring. Dependency direction is enforced by `Package.swift`.
 | `RemoteSeriesApi`, `RemoteLibraryApi`, `RemoteCollectionsApi`, `RemoteReadListApi`, `RemoteReferentialApi`, `RemoteUserApi`, `RemoteSettingsApi`, `RemoteTaskApi`, `RemoteActuatorApi`, `RemoteAnnouncementsApi`, `RemoteFileSystemApi` | same names | ✅ |
 | `KomgaClientFactory.configureKtor` | `KomgaHTTPClient` | ✅ |
 | `RememberMePersistingCookieStore` | `KomgaCookieStore` + `KomgaCookiePersistence` | ✅ (Keychain impl in F2) |
-| `ApiKeyStore` | `apiKey` provider closure on `KomgaHTTPClient` | 🟡 (store in F2) |
-| `SecretsRepository` | — | ⬜ F2 |
+| `ApiKeyStore` | `ApiKeyStore` (KomeliaCore/Auth) | ✅ |
+| `SecretsRepository` | `SecretsRepository` + `KeychainSecretsRepository` | ✅ |
+| `SettingsStateWrapper` / `*RepositoryWrapper` | `SettingsState<T>` | ✅ |
+| `LoginViewModel`, `MainScreenViewModel`, `HomeViewModel`, `LibraryViewModel`, `SeriesViewModel`, `BookViewModel` … | same names (KomeliaUI) | ✅ |
+| `KomeliaFetcherFactory` (Coil) | `ThumbnailRequest` + `ThumbnailLoader` | ✅ |
+| `AppModule` | `AppModule` (KomeliaAppShared) | ✅ |
 
 ## Deliberate deviations (documented, not silent)
 
