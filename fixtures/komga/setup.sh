@@ -27,7 +27,7 @@ create_lib Webtoon '{"name":"Webtoon","root":"/data/Webtoon"}'
 echo "waiting for scan/analysis..."
 for _ in $(seq 1 60); do
   n=$(curl -sf "${AUTH[@]}" "$BASE/api/v1/books?size=1" | python3 -c "import json,sys; print(json.load(sys.stdin)['totalElements'])")
-  [ "$n" -ge 14 ] && break; sleep 2
+  [ "$n" -ge 12 ] && break; sleep 2
 done
 sleep 5
 
