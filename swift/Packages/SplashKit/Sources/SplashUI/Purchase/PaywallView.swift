@@ -32,6 +32,8 @@ public struct PaywallView: View {
                     }
                     .frame(maxWidth: 420, alignment: .leading)
 
+                    priceBlock
+
                     if let message = store.message {
                         Text(message).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     }
@@ -68,6 +70,32 @@ public struct PaywallView: View {
             }
             .task { if store.product == nil { await store.loadProduct() } }
         }
+    }
+}
+
+extension PaywallView {
+    /// The price, stated plainly rather than only on the button. `displayPrice` is StoreKit's localized
+    /// string, so it already carries the right currency and formatting for the viewer's storefront.
+    @ViewBuilder fileprivate var priceBlock: some View {
+        VStack(spacing: 4) {
+            if let product = store.product {
+                Text(product.displayPrice)
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .contentTransition(.numericText())
+                Text("One-time payment. Yours forever — no subscription, no renewal.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            } else if store.isLoadingProduct {
+                ProgressView()
+            } else {
+                Text("Price unavailable — check your connection and try again.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: 420)
     }
 }
 

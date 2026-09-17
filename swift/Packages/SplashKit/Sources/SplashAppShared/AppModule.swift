@@ -184,6 +184,17 @@ public final class AppModule: AppSession {
     /// Production wiring of the paid offline unlock (plan Phase 16).
     public static func makeDefaultWithStore() async throws -> AppModule {
         let store = OfflineEntitlementStore(provider: StoreKitOfflineProvider())
+        #if DEBUG
+        // Debug builds only: `SPLASH_UNLOCK_OFFLINE=1` skips the entitlement check so downloads and offline
+        // mode can be exercised without going through StoreKit at all. Deliberately compiled out of release
+        // builds — a bypass that ships is a bypass anyone can find in the binary.
+        if ProcessInfo.processInfo.environment["SPLASH_UNLOCK_OFFLINE"] == "1" {
+            let module = try await makeDefault(accessPolicy: AlwaysUnlockedPolicy())
+            module.entitlements = store
+            await store.start()
+            return module
+        }
+        #endif
         let module = try await makeDefault(accessPolicy: store)
         module.entitlements = store
         await store.start()

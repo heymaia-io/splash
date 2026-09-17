@@ -46,6 +46,7 @@ public enum PurchaseOutcome: Sendable, Equatable {
 public final class OfflineEntitlementStore: OfflineAccessPolicy {
     public private(set) var isUnlocked = false
     public private(set) var product: OfflineProductInfo?
+    public private(set) var isLoadingProduct = false
     public private(set) var isPurchasing = false
     public private(set) var message: String?
     /// Drives the paywall sheet.
@@ -71,6 +72,8 @@ public final class OfflineEntitlementStore: OfflineAccessPolicy {
     }
 
     public func loadProduct() async {
+        isLoadingProduct = true
+        defer { isLoadingProduct = false }
         product = try? await provider.productInfo()
     }
 
