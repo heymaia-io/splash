@@ -8,13 +8,13 @@ Tracks the plan in `~/.claude/plans/harmonic-seeking-conway.md`. Kotlin location
 
 | Swift | Kotlin origin |
 |---|---|
-| `swift/Komelia.xcodeproj` + `swift/Komelia/` (app target, iOS 18) | `komelia-app`, `komelia-ui` |
-| `swift/Packages/KomeliaKit` — target `KomgaAPI` | `komelia-domain/komga-api` + models of `io.github.snd-r:komga-client:0.11.0` |
+| `swift/Splash.xcodeproj` + `swift/Splash/` (app target, iOS 18) | `komelia-app`, `komelia-ui` |
+| `swift/Packages/SplashKit` — target `KomgaAPI` | `komelia-domain/komga-api` + models of `io.github.snd-r:komga-client:0.11.0` |
 | target `KomgaRemote` | `komelia-domain/core/api/Remote*.kt`, `core/http/*`, komga-client `Http*Client` |
-| target `KomeliaCore` | `komelia-domain/core` (settings, image, color) |
-| target `KomeliaDB` | `komelia-infra/database` |
-| target `KomeliaOffline` | `komelia-domain/offline` |
-| target `KomeliaImage` | `komelia-infra/image-decoder` |
+| target `SplashCore` | `komelia-domain/core` (settings, image, color) |
+| target `SplashDB` | `komelia-infra/database` |
+| target `SplashOffline` | `komelia-domain/offline` |
+| target `SplashImage` | `komelia-infra/image-decoder` |
 
 One local SPM package with one target per Gradle module (instead of 7 packages) — same boundaries, less
 Xcode wiring. Dependency direction is enforced by `Package.swift`.
@@ -26,7 +26,7 @@ Xcode wiring. Dependency direction is enforced by `Package.swift`.
 | F0 foundations + wire contract | ✅ | Package + app build; fixture server (`fixtures/komga`); `docs/wire-format.md` (107 ops, all in OpenAPI) |
 | F1 KomgaAPI + RemoteAPI | ✅ | 12 protocols, models, search conditions, SSE catalog; 34 tests incl. live contract tests |
 | F2 auth / secrets / session | ✅ | Keychain secrets, ApiKeyStore, LoginViewModel/LoginView, session restore (offline login → F10) |
-| F3 persistence (GRDB) | ✅ | komelia.sqlite + offline.sqlite (33/33 tables), stores, records, task queue |
+| F3 persistence (GRDB) | ✅ | splash.sqlite + offline.sqlite (33/33 tables), stores, records, task queue |
 | F4 adaptive shell | ✅ | MainNavigator, WindowSizeClass, MainShellView (split view on iPad) |
 | F5 thumbnails | ✅ | ThumbnailLoader + ThumbnailView |
 | F6 library screens | ✅ | Home, Library, Series, Book, Oneshot, Collection, ReadList, Search (no filter editor) |
@@ -38,7 +38,7 @@ Xcode wiring. Dependency direction is enforced by `Package.swift`.
 | F12 sync | ✅ | SyncManager (push progress, pull metadata, 6h throttle) triggered by the online user |
 | F13 polish | 🟡 | Settings, theme, keyboard, privacy manifest, licenses done; pending: rename/icon, App Store metadata, full accessibility audit, TestFlight |
 | F14 PDF | ✅ | Vector rendering online and offline (verified with real PDFs) |
-| F15 EPUB | ✅ | KomeliaEpubKit (Readium 3.11): online manifest with auth, offline file, progression sync, settings |
+| F15 EPUB | ✅ | SplashEpubKit (Readium 3.11): online manifest with auth, offline file, progression sync, settings |
 | F16 offline purchase | 🟡 | StoreKit 2 entitlement + paywall + restore + revocation, local .storekit + shared scheme, licenses screen; pending: App Store Connect product, rename app |
 
 ## Symbol map
@@ -47,7 +47,7 @@ Xcode wiring. Dependency direction is enforced by `Package.swift`.
 |---|---|---|
 | `KomgaApi` (komga-api/KomgaApi.kt) | `KomgaApi` (KomgaAPI/Protocols/KomgaApi.swift) | ✅ |
 | `KomgaBookApi` … `KomgaUserApi` (12 interfaces) | same names, `async throws` | ✅ |
-| `KomeliaBook` | `KomeliaBook` (composition + `@dynamicMemberLookup`) | ✅ |
+| `SplashBook` | `SplashBook` (composition + `@dynamicMemberLookup`) | ✅ |
 | `KomgaSort` / `KomgaBooksSort` / `KomgaSeriesSort` / `KomgaUserSort` | `KomgaSort` + factory enums | ✅ |
 | `KomgaPageRequest`, `Page<T>` | same | ✅ |
 | `KomgaSearchCondition.*`, `KomgaSearchOperator.*` | `BookCondition`, `SeriesCondition`, `EqualityOp`… | ✅ |
@@ -57,16 +57,16 @@ Xcode wiring. Dependency direction is enforced by `Package.swift`.
 | `KomgaSSESession`, `RemoteApi.CombinedSSESession` | `KomgaSSESession`, `RemoteSSESession` | ✅ |
 | `MutableSharedFlow<KomgaEvent>` (offline events) | `KomgaEventBroadcaster` | ✅ |
 | `RemoteApi` | `RemoteKomgaApi` | ✅ |
-| `RemoteBookApi` (+ `getKomeliaBook(Page)`) | `RemoteBookApi` + `OfflineBookStateProvider` | ✅ |
+| `RemoteBookApi` (+ `getSplashBook(Page)`) | `RemoteBookApi` + `OfflineBookStateProvider` | ✅ |
 | `RemoteSeriesApi`, `RemoteLibraryApi`, `RemoteCollectionsApi`, `RemoteReadListApi`, `RemoteReferentialApi`, `RemoteUserApi`, `RemoteSettingsApi`, `RemoteTaskApi`, `RemoteActuatorApi`, `RemoteAnnouncementsApi`, `RemoteFileSystemApi` | same names | ✅ |
 | `KomgaClientFactory.configureKtor` | `KomgaHTTPClient` | ✅ |
 | `RememberMePersistingCookieStore` | `KomgaCookieStore` + `KomgaCookiePersistence` | ✅ (Keychain impl in F2) |
-| `ApiKeyStore` | `ApiKeyStore` (KomeliaCore/Auth) | ✅ |
+| `ApiKeyStore` | `ApiKeyStore` (SplashCore/Auth) | ✅ |
 | `SecretsRepository` | `SecretsRepository` + `KeychainSecretsRepository` | ✅ |
 | `SettingsStateWrapper` / `*RepositoryWrapper` | `SettingsState<T>` | ✅ |
-| `LoginViewModel`, `MainScreenViewModel`, `HomeViewModel`, `LibraryViewModel`, `SeriesViewModel`, `BookViewModel` … | same names (KomeliaUI) | ✅ |
+| `LoginViewModel`, `MainScreenViewModel`, `HomeViewModel`, `LibraryViewModel`, `SeriesViewModel`, `BookViewModel` … | same names (SplashUI) | ✅ |
 | `KomeliaFetcherFactory` (Coil) | `ThumbnailRequest` + `ThumbnailLoader` | ✅ |
-| `AppModule` | `AppModule` (KomeliaAppShared) | ✅ |
+| `AppModule` | `AppModule` (SplashAppShared) | ✅ |
 
 ## Deliberate deviations (documented, not silent)
 

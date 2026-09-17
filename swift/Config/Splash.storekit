@@ -1,0 +1,45 @@
+{
+  "identifier" : "4C1D8B8E-6C0E-4F5B-9E7A-2B7F0F0C5A11",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "3.99",
+      "familyShareable" : false,
+      "internalID" : "6743000001",
+      "localizations" : [
+        {
+          "description" : "Download comics, PDFs and EPUBs and read them without a connection.",
+          "displayName" : "Offline Reading",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "Descarga cómics, PDFs y EPUBs y léelos sin conexión.",
+          "displayName" : "Lectura sin conexión",
+          "locale" : "es_MX"
+        }
+      ],
+      "productID" : "com.heymaia.splash.offline",
+      "referenceName" : "Offline Reading",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

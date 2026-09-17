@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cross-checks every HTTP call in swift/Packages/KomeliaKit/Sources/KomgaRemote against the
+"""Cross-checks every HTTP call in swift/Packages/SplashKit/Sources/KomgaRemote against the
 Komga OpenAPI snapshot (fixtures/komga/openapi.json) and writes docs/wire-format.md.
 
 Usage: tools/wire_contract_check.py   (exit code 1 if any endpoint is missing from the spec)
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCES = ROOT / "swift/Packages/KomeliaKit/Sources/KomgaRemote"
+SOURCES = ROOT / "swift/Packages/SplashKit/Sources/KomgaRemote"
 SPEC = ROOT / "fixtures/komga/openapi.json"
 OUT = ROOT / "docs/wire-format.md"
 
