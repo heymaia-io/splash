@@ -67,3 +67,45 @@ import UniformTypeIdentifiers
         }
     }
 }
+
+@Suite struct PDFReaderImageTests {
+    /// Two-page PDF: US Letter with a grey box inset 72pt.
+    static func pdf(pages: Int = 2) -> Data {
+        let data = NSMutableData()
+        var box = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let consumer = CGDataConsumer(data: data as CFMutableData)!
+        let context = CGContext(consumer: consumer, mediaBox: &box, nil)!
+        for _ in 0..<pages {
+            context.beginPDFPage(nil)
+            context.setFillColor(CGColor(gray: 0.3, alpha: 1))
+            context.fill(box.insetBy(dx: 72, dy: 72))
+            context.endPDFPage()
+        }
+        context.closePDF()
+        return data as Data
+    }
+
+    let id = PageId(bookId: "P", pageNumber: 1)
+
+    @Test func pdfPagesRenderAtRequestedResolutionBeyondNaturalSize() async throws {
+        let image = try ReaderImageFactory().makeImage(pageId: id, data: Self.pdf(), cropBorders: false, pdfPage: 2)
+        #expect(image.isVector)
+        #expect(image.originalSize == CGSize(width: 1224, height: 1584))
+        let zoomed = try #require(await image.bitmap(forDisplayedPixels: CGSize(width: 3000, height: 3900)))
+        #expect(zoomed.pixelSize.height > 1584)  // vectors can exceed natural size
+        #expect(abs(zoomed.pixelSize.width / zoomed.pixelSize.height - 612.0 / 792.0) < 0.01)
+    }
+
+    @Test func pdfCropBordersRemovesWhiteMargin() throws {
+        let image = try ReaderImageFactory().makeImage(pageId: id, data: Self.pdf(pages: 1), cropBorders: true)
+        let rect = image.contentRect
+        #expect(abs(rect.minX - 144) < 8)  // 72pt × 2
+        #expect(abs(rect.width - (1224 - 288)) < 12)
+    }
+
+    @Test func missingPdfPageThrows() {
+        #expect(throws: ReaderImageError.self) {
+            _ = try ReaderImageFactory().makeImage(pageId: id, data: Self.pdf(pages: 1), cropBorders: false, pdfPage: 5)
+        }
+    }
+}

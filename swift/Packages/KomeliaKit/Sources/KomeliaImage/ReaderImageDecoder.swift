@@ -40,8 +40,7 @@ enum ReaderImageDecoder {
     /// Port of libvips `find_trim` (used by `CropBordersStep`): background = top-left pixel, a pixel is
     /// "content" when any channel differs by more than `threshold`. Analysed on a ≤512 px thumbnail.
     /// Returns nil when no meaningful border exists (or the page is blank).
-    static func findTrim(source: CGImageSource, originalSize: CGSize, threshold: Int = 24) -> CGRect? {
-        guard let thumb = decode(source: source, maxPixelSize: 512) else { return nil }
+    static func findTrim(in thumb: CGImage, originalSize: CGSize, threshold: Int = 24) -> CGRect? {
         let width = thumb.width, height = thumb.height
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
         let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in

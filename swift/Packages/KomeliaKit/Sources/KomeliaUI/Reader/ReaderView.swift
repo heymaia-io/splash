@@ -29,6 +29,15 @@ public struct ReaderView: View {
             if showOverlay { overlay }
         }
         .statusBarHiddenCompat(!showOverlay)
+        // Hardware keyboard (iPad): arrows/space turn pages, Esc closes (`MainScreen` Alt+← / reader key map).
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.leftArrow) { turn(physicalLeft: true); return .handled }
+        .onKeyPress(.rightArrow) { turn(physicalLeft: false); return .handled }
+        .onKeyPress(.space) { advance(forward: true); return .handled }
+        .onKeyPress(.upArrow) { advance(forward: false); return .handled }
+        .onKeyPress(.downArrow) { advance(forward: true); return .handled }
+        .onKeyPress(.escape) { onClose(nil); return .handled }
         .task {
             await model.initialize()
             setUpModels()
@@ -209,6 +218,22 @@ public struct ReaderView: View {
             }
         }
         .transition(.opacity)
+    }
+
+    /// Physical arrow keys follow the paged reading direction.
+    private func turn(physicalLeft: Bool) {
+        let rtl = paged?.readingDirection == .rightToLeft
+        advance(forward: physicalLeft == rtl)
+    }
+
+    private func advance(forward: Bool) {
+        if model.readerType == .continuous {
+            stepRequest = ContinuousStripViewStep(id: (stepRequest?.id ?? 0) + 1, forward: forward)
+        } else if forward {
+            paged?.nextPage()
+        } else {
+            paged?.previousPage()
+        }
     }
 
     private func jump(to page: Int) {

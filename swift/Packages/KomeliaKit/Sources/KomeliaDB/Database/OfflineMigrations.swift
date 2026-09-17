@@ -434,8 +434,29 @@ enum OfflineMigrations {
                 CREATE INDEX log_journal__level_idx ON LOG_JOURNAL (type);
                 """)
         }
+        // [NUEVO] Persisted download state (Kotlin kept it in memory only). Appended, never edit v1.
+        migrator.registerMigration("v2_book_download") { db in
+            try db.execute(sql: """
+                CREATE TABLE BOOK_DOWNLOAD
+                (
+                    book_id            TEXT     NOT NULL PRIMARY KEY,
+                    status             TEXT     NOT NULL,
+                    total_bytes        INTEGER  NOT NULL DEFAULT 0,
+                    completed_bytes    INTEGER  NOT NULL DEFAULT 0,
+                    error              TEXT,
+                    book_title         TEXT,
+                    series_id          TEXT,
+                    created_date       DATETIME NOT NULL DEFAULT \(now),
+                    last_modified_date DATETIME NOT NULL DEFAULT \(now)
+                );
+                CREATE INDEX book_download__status_idx ON BOOK_DOWNLOAD (status);
+                """)
+        }
         return migrator
     }
+
+    /// Tables added on top of the Kotlin schema.
+    static let iosTableNames: Set<String> = ["BOOK_DOWNLOAD"]
 
     /// Every table of `V1__offline_mode.sql`, for tests and diagnostics.
     static let tableNames: Set<String> = [

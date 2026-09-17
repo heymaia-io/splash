@@ -53,6 +53,14 @@ public struct OfflineTaskQueue: Sendable {
         _ = try await writer.write { db in try OfflineTaskRecord.deleteOne(db, key: uniqueName) }
     }
 
+    /// Deletes the task only if nobody claimed it yet (status NEW). Returns whether a row was removed.
+    public func deletePending(uniqueName: String) async throws -> Bool {
+        try await writer.write { db in
+            try db.execute(literal: "DELETE FROM TASK WHERE unique_name = \(uniqueName) AND status = 'NEW'")
+            return db.changesCount > 0
+        }
+    }
+
     /// Returns tasks left RUNNING by a previous process to NEW (called on startup). Returns the count reset.
     @discardableResult
     public func resetAllRunning() async throws -> Int {

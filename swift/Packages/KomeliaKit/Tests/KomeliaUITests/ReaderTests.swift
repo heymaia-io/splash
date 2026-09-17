@@ -56,10 +56,10 @@ import Testing
         // Two pages share the width.
         let two = SpreadLayout.pageSizes(contentSizes: page + page, area: area, scaleType: .screen,
                                          stretchToFit: true, screenScale: 1)
-        #expect(two == [CGSize(width: 250, height: 500), CGSize(width: 250, height: 500)])
+        #expect(two == [CGSize(width: 400, height: 800), CGSize(width: 400, height: 800)])  // 500×800 half, height-limited
         let (content, frames) = SpreadLayout.frames(for: two, rightToLeft: true)
-        #expect(content == CGSize(width: 500, height: 500))
-        #expect(frames[0].minX == 250)  // first page on the right
+        #expect(content == CGSize(width: 800, height: 800))
+        #expect(frames[0].minX == 400)  // first page on the right
     }
 }
 

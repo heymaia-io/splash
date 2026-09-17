@@ -20,15 +20,16 @@ import Testing
     @Test func offlineDatabaseHasEveryKotlinTable() async throws {
         let database = try KomeliaDatabase.inMemory()
         let tables = try await database.offline.read(userTables)
-        // The 33 CREATE TABLE statements of V1__offline_mode.sql.
-        #expect(tables.count == 33)
-        #expect(tables == OfflineMigrations.tableNames)
+        // The 33 CREATE TABLE statements of V1__offline_mode.sql + the iOS-only download state table.
+        #expect(OfflineMigrations.tableNames.count == 33)
+        #expect(tables == OfflineMigrations.tableNames.union(OfflineMigrations.iosTableNames))
 
         let indexes = try await database.offline.read { db in
             Set(try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL"))
         }
         #expect(indexes == [
             "offline_media_server__url_idx", "tasks__status_idx", "tasks__start_time_idx", "log_journal__level_idx",
+            "book_download__status_idx",
         ])
     }
 
@@ -56,6 +57,6 @@ import Testing
         let offlineApplied = try await temp.database.offline.read { db in
             try OfflineMigrations.migrator.appliedMigrations(db)
         }
-        #expect(offlineApplied == ["v1_offline_mode"])
+        #expect(offlineApplied == ["v1_offline_mode", "v2_book_download"])
     }
 }

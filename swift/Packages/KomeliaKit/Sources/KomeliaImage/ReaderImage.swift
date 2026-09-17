@@ -23,16 +23,19 @@ public actor ReaderImage {
     /// Crop rectangle in original pixel coordinates (whole image when trimming is off/not found).
     public nonisolated let contentRect: CGRect
 
-    private let source: CGImageSource
+    private let renderer: any PageRenderer
     private var current: PageBitmap?
     private var currentMaxDimension = 0
 
-    init(pageId: PageId, source: CGImageSource, originalSize: CGSize, contentRect: CGRect) {
+    init(pageId: PageId, renderer: any PageRenderer, contentRect: CGRect) {
         self.pageId = pageId
-        self.source = source
-        self.originalSize = originalSize
+        self.renderer = renderer
+        self.originalSize = renderer.naturalSize
         self.contentRect = contentRect
     }
+
+    /// True for vector (PDF) pages, which may be rendered beyond their natural size when zoomed.
+    public nonisolated var isVector: Bool { renderer is PDFPageRenderer }
 
     /// Size of the visible content (after border crop).
     public nonisolated var contentSize: CGSize { contentRect.size }
@@ -42,12 +45,14 @@ public actor ReaderImage {
     public func bitmap(forDisplayedPixels needed: CGSize) -> PageBitmap? {
         let scale = max(needed.width / max(contentSize.width, 1), needed.height / max(contentSize.height, 1))
         let fullLongest = max(originalSize.width, originalSize.height)
-        // Round up to buckets of 256 px to avoid re-decoding for tiny zoom changes.
-        var target = Int((fullLongest * min(scale, 1)).rounded(.up))
-        target = min(((target + 255) / 256) * 256, Self.maxDecodeDimension, Int(fullLongest))
+        // Raster pages never exceed their pixels; vector pages can be rendered larger for sharp zoom.
+        let limit = isVector ? CGFloat(Self.maxDecodeDimension) : fullLongest
+        var target = Int((fullLongest * min(scale, limit / fullLongest)).rounded(.up))
+        // Round up to buckets of 256 px to avoid re-rendering for tiny zoom changes.
+        target = min(((target + 255) / 256) * 256, Self.maxDecodeDimension, Int(limit))
         if let current, currentMaxDimension >= target { return current }
 
-        guard let decoded = ReaderImageDecoder.decode(source: source, maxPixelSize: max(target, 64)) else {
+        guard let decoded = renderer.render(maxPixelSize: max(target, 64)) else {
             return current
         }
         let cropped = ReaderImageDecoder.crop(decoded, to: contentRect, originalSize: originalSize)
@@ -83,16 +88,30 @@ public enum ReaderLayout {
 public struct ReaderImageFactory: Sendable {
     public init() {}
 
-    public func makeImage(pageId: PageId, data: Data, cropBorders: Bool) throws -> ReaderImage {
+    /// Accepts encoded images (JPEG/PNG/WebP/HEIC/…) and single- or multi-page PDF data (`pdfPage`).
+    public func makeImage(pageId: PageId, data: Data, cropBorders: Bool, pdfPage: Int = 1) throws -> ReaderImage {
+        let renderer = try Self.renderer(for: data, pageId: pageId, pdfPage: pdfPage)
+        let size = renderer.naturalSize
+        var rect = CGRect(origin: .zero, size: size)
+        if cropBorders, let thumb = renderer.thumbnail(),
+           let trim = ReaderImageDecoder.findTrim(in: thumb, originalSize: size) {
+            rect = trim
+        }
+        return ReaderImage(pageId: pageId, renderer: renderer, contentRect: rect)
+    }
+
+    private static func renderer(for data: Data, pageId: PageId, pdfPage: Int) throws -> any PageRenderer {
+        if PDFPageRenderer.isPDF(data) {
+            guard let pdf = PDFPageRenderer(data: data, pageNumber: pdfPage) else {
+                throw ReaderImageError.undecodable(pageId)
+            }
+            return pdf
+        }
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithData(data as CFData, options),
               let size = ReaderImageDecoder.pixelSize(of: source)
         else { throw ReaderImageError.undecodable(pageId) }
-        var rect = CGRect(origin: .zero, size: size)
-        if cropBorders, let trim = ReaderImageDecoder.findTrim(source: source, originalSize: size) {
-            rect = trim
-        }
-        return ReaderImage(pageId: pageId, source: source, originalSize: size, contentRect: rect)
+        return RasterPageRenderer(source: source, naturalSize: size)
     }
 }
 

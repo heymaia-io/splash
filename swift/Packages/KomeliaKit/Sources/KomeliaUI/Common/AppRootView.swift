@@ -22,6 +22,8 @@ public struct AppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     private let initialBook: KomeliaBook?
+    /// Extra settings rows supplied by the composition root (e.g. downloads/offline, Phase 10–11).
+    public var settingsExtras: AnyView?
 
     public init(session: any AppSession, initialBook: KomeliaBook? = nil) {
         self.session = session
@@ -48,6 +50,8 @@ public struct AppRootView: View {
             }
         }
         .environment(\.thumbnailLoader, session.viewModelFactory.thumbnails)
+        .preferredColorScheme(session.settings.value.appTheme.colorScheme)
+        .background(session.settings.value.appTheme == .darker ? Color.black.ignoresSafeArea() : nil)
         .onChange(of: session.authState.state) { _, state in
             if state == .authenticationRequired {
                 mainModel?.stopListening()
@@ -68,7 +72,7 @@ public struct AppRootView: View {
                 onRead: { readingBook = $0 })
         }
         .sheet(isPresented: $showSettings) {
-            SettingsPlaceholderView(session: session) {
+            SettingsView(session: session, extraSections: settingsExtras) {
                 showSettings = false
                 loginModel = LoginViewModel(session: session)
             }
@@ -90,30 +94,3 @@ public struct AppRootView: View {
     }
 }
 
-/// Minimal settings until Phase 13 (account + logout).
-struct SettingsPlaceholderView: View {
-    let session: any AppSession
-    let onLoggedOut: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if let user = session.authState.authenticatedUser {
-                    Section("Account") {
-                        LabeledContent("User", value: user.email)
-                        LabeledContent("Server", value: session.settings.value.serverUrl)
-                    }
-                }
-                Section {
-                    Button("Log out", role: .destructive) {
-                        Task {
-                            await session.logout()
-                            onLoggedOut()
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Settings")
-        }
-    }
-}
