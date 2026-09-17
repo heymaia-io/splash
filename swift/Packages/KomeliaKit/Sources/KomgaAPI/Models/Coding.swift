@@ -161,7 +161,7 @@ where Value.RawValue == String {
 extension LenientEnum: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        if try container.decodeNil() {
+        if container.decodeNil() {
             wrappedValue = nil
         } else {
             wrappedValue = Value(rawValue: try container.decode(String.self))
