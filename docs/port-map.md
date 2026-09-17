@@ -25,12 +25,12 @@ Xcode wiring. Dependency direction is enforced by `Package.swift`.
 |---|---|---|
 | F0 foundations + wire contract | ✅ | Package + app build; fixture server (`fixtures/komga`); `docs/wire-format.md` (107 ops, all in OpenAPI) |
 | F1 KomgaAPI + RemoteAPI | ✅ | 12 protocols, models, search conditions, SSE catalog; 34 tests incl. live contract tests |
-| F2 auth / secrets / session | 🟡 | Cookie store + remember-me persistence seam + Basic/API-key done in F1; Keychain + login UI pending |
-| F3 persistence (GRDB) | ⬜ | |
-| F4 adaptive shell | ⬜ | |
-| F5 thumbnails | ⬜ | |
-| F6 library screens | ⬜ | |
-| F7 SSE + live updates | 🟡 | Parser + reconnecting session done (verified live); lifecycle pause + consumers pending |
+| F2 auth / secrets / session | ✅ | Keychain secrets, ApiKeyStore, LoginViewModel/LoginView, session restore (offline login → F10) |
+| F3 persistence (GRDB) | ✅ | komelia.sqlite + offline.sqlite (33/33 tables), stores, records, task queue |
+| F4 adaptive shell | ✅ | MainNavigator, WindowSizeClass, MainShellView (split view on iPad) |
+| F5 thumbnails | ✅ | ThumbnailLoader + ThumbnailView |
+| F6 library screens | ✅ | Home, Library, Series, Book, Oneshot, Collection, ReadList, Search (no filter editor) |
+| F7 SSE + live updates | 🟡 | LiveEventsController fan-out, scenePhase pause, thumbnail invalidation, per-screen reloads; needs on-device verification |
 | F8 image engine | ⬜ | |
 | F9 reader | ⬜ | |
 | F10 offline API | ⬜ | `OfflineBookStateProvider` seam already consumed by remote APIs |
