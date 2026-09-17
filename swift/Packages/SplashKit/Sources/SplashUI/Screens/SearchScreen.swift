@@ -75,7 +75,7 @@ struct SearchScreen: View {
                 ContentUnavailableView("Search", systemImage: "magnifyingglass",
                                        description: Text("Search all libraries"))
             case .error(let error):
-                ErrorView(error: error) { Task { await model.search() } }
+                ScreenErrorView(error: error, retry: { Task { await model.search() } })
             default:
                 if model.state.value != nil, model.series.isEmpty, model.books.isEmpty {
                     ContentUnavailableView.search(text: model.query)

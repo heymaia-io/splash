@@ -150,7 +150,7 @@ struct SeriesScreen: View {
         Group {
             switch model.state {
             case .error(let error) where model.series == nil:
-                ErrorView(error: error) { Task { await model.reload() } }
+                ScreenErrorView(error: error, retry: { Task { await model.reload() } })
             case _ where model.series == nil:
                 ProgressView()
             default:

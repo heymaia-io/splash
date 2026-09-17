@@ -86,7 +86,7 @@ struct BookScreen: View {
         Group {
             switch model.state {
             case .error(let error) where model.book == nil:
-                ErrorView(error: error) { Task { await model.reload() } }
+                ScreenErrorView(error: error, retry: { Task { await model.reload() } })
             case _ where model.book == nil:
                 ProgressView()
             default:

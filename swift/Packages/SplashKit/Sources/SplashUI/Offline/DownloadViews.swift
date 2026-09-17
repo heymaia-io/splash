@@ -212,7 +212,8 @@ struct DownloadsView: View {
                     switch state {
                     case .error(let error):
                         ErrorView(error: error) { Task { await load(offline) } }
-                    case .uninitialized, .loading where series.isEmpty:
+                    case .uninitialized,
+                         .loading where series.isEmpty:
                         ProgressView().frame(maxWidth: .infinity, minHeight: 200)
                     default:
                         if series.isEmpty, offline.sortedDownloads.isEmpty {

@@ -100,7 +100,7 @@ public final class AppModule: AppSession {
         // offline book states — the box breaks the construction cycle.
         let remoteBox = RemoteBox()
         let downloadRoot = storage.downloadRoot
-        offline = OfflineModule(
+        let offlineModule = OfflineModule(
             store: GRDBOfflineDataStore(database: storage.database),
             tasksRepository: GRDBOfflineTasksRepository(storage.database.offline),
             settings: offlineSettings,
@@ -114,15 +114,17 @@ public final class AppModule: AppSession {
             },
             downloadConfiguration: storage.downloadConfiguration,
             downloadRoot: { downloadRoot })
+        offline = offlineModule
         let remote = RemoteKomgaApi(http: http, offlineBooks: offline.bookStates, offlineEvents: offline.events)
         remoteApi = remote
         remoteBox.set(remote)
 
         let holder = ApiHolder(offlineSettings.isOfflineModeEnabled ? offline.api : remote)
         apiHolder = holder
+        let offlineApi = offlineModule.api
         let thumbnails = ThumbnailLoader(
-            api: { holder.current }, namespace: { server.get().absoluteString },
-            configuration: storage.thumbnailCache)
+            api: { holder.current }, offlineApi: { offlineApi },
+            namespace: { server.get().absoluteString }, configuration: storage.thumbnailCache)
         self.thumbnails = thumbnails
         liveEvents = LiveEventsController(api: { holder.current }, broadcaster: events, thumbnails: thumbnails)
     }

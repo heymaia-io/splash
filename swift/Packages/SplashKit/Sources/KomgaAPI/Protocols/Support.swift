@@ -28,6 +28,21 @@ public enum KomgaAPIError: Error, Sendable, Equatable {
 extension Error {
     public var isKomgaNotFound: Bool { (self as? KomgaAPIError)?.isNotFound ?? false }
     public var isKomgaUnauthorized: Bool { (self as? KomgaAPIError)?.isUnauthorized ?? false }
+
+    /// "The server could not be reached" — no network, or a self-hosted Komga that is down, behind a VPN
+    /// that is off, or simply not on this network. The UI treats all of these the same: fall back to what
+    /// is stored locally. Deliberately broader than a connectivity check on the device, because with a
+    /// self-hosted server "online but cannot reach it" is at least as common as "no connection".
+    public var isServerUnreachable: Bool {
+        guard let error = self as? URLError else { return false }
+        switch error.code {
+        case .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost, .cannotFindHost,
+             .timedOut, .dnsLookupFailed, .internationalRoamingOff, .dataNotAllowed, .secureConnectionFailed:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 /// Offline bookkeeping merged into remote books (`OfflineBookRepository.find/findIn` in RemoteBookApi.kt).

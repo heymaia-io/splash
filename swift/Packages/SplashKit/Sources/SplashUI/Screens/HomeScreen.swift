@@ -118,7 +118,9 @@ struct HomeScreen: View {
         Group {
             switch model.state {
             case .error(let error) where model.sections.isEmpty:
-                ErrorView(error: error) { Task { await model.load() } }
+                ScreenErrorView(
+                    error: error, retry: { Task { await model.load() } },
+                    downloads: .init(cardWidth: cardWidth, navigate: navigate))
             case .uninitialized:
                 ProgressView()
             default:

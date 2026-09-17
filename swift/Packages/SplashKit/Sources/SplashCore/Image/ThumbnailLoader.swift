@@ -32,6 +32,7 @@ public actor ThumbnailLoader {
     }
 
     private let api: @Sendable () -> any KomgaApi
+    private let offlineApi: @Sendable () -> (any KomgaApi)?
     private let namespace: @Sendable () -> String
     private let configuration: Configuration
     private let memory = NSCache<NSString, CGImageBox>()
@@ -41,13 +42,17 @@ public actor ThumbnailLoader {
 
     /// - Parameters:
     ///   - api: current API (remote or offline) — read on every fetch, like `komgaApi: StateFlow<KomgaApi>`.
+    ///   - offlineApi: fallback used when the server cannot be reached; serves the thumbnail bytes stored
+    ///     alongside downloaded books, so covers of downloaded content keep rendering with no connection.
     ///   - namespace: disk-cache partition (server URL), so two servers never share entries.
     public init(
         api: @escaping @Sendable () -> any KomgaApi,
+        offlineApi: @escaping @Sendable () -> (any KomgaApi)? = { nil },
         namespace: @escaping @Sendable () -> String,
         configuration: Configuration = .default
     ) {
         self.api = api
+        self.offlineApi = offlineApi
         self.namespace = namespace
         self.configuration = configuration
         memory.totalCostLimit = configuration.memoryBudgetBytes
@@ -106,7 +111,15 @@ public actor ThumbnailLoader {
             try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: file.path)
             return data
         }
-        guard let data = try await request.fetchBytes(from: api()) else { return nil }
+        let data: Data?
+        do {
+            data = try await request.fetchBytes(from: api())
+        } catch let error where error.isServerUnreachable {
+            // Unreachable server: the offline store still has the thumbnails of everything downloaded.
+            guard let offline = offlineApi() else { throw error }
+            data = try await request.fetchBytes(from: offline)
+        }
+        guard let data else { return nil }
         store(data, at: file, cacheKey: request.cacheKey)
         return data
     }

@@ -238,10 +238,8 @@ struct LibraryScreen: View {
     /// Library switcher, styled as the chip under the large title in the design references.
     private var libraryPicker: some View {
         Menu {
-            Picker("Library", selection: Binding(get: { model.libraryId }, set: selectLibrary)) {
-                Text("All Libraries").tag(KomgaLibraryId?.none)
-                ForEach(model.libraries) { Text($0.name).tag(KomgaLibraryId?.some($0.id)) }
-            }
+            libraryOption(title: String(localized: "All Libraries"), id: nil)
+            ForEach(model.libraries) { libraryOption(title: $0.name, id: $0.id) }
         } label: {
             Label {
                 Text(model.library?.name ?? String(localized: "All Libraries"))
@@ -257,10 +255,22 @@ struct LibraryScreen: View {
         .padding(.horizontal)
     }
 
+    @ViewBuilder private func libraryOption(title: String, id: KomgaLibraryId?) -> some View {
+        Button { selectLibrary(id) } label: {
+            if model.libraryId == id {
+                Label(title, systemImage: "checkmark")
+            } else {
+                Text(title)
+            }
+        }
+    }
+
     @ViewBuilder private var seriesTab: some View {
         switch model.seriesState {
         case .error(let error):
-            ErrorView(error: error) { Task { await model.reload() } }
+            ScreenErrorView(
+                error: error, retry: { Task { await model.reload() } },
+                downloads: .init(cardWidth: model.cardWidth, navigate: navigate))
         case .uninitialized:
             ProgressView().frame(maxWidth: .infinity, minHeight: 200)
         case .loading where model.series.isEmpty:

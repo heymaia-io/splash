@@ -73,7 +73,7 @@ struct CollectionScreen: View {
     var body: some View {
         ScrollView {
             if case .error(let error) = model.state {
-                ErrorView(error: error) { Task { await model.load(page: 1) } }
+                ScreenErrorView(error: error, retry: { Task { await model.load(page: 1) } })
             }
             CardGrid(items: model.series, cardWidth: model.cardWidth) { item in
                 Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
@@ -166,7 +166,7 @@ struct ReadListScreen: View {
                 Text(summary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
             }
             if case .error(let error) = model.state {
-                ErrorView(error: error) { Task { await model.load(page: 1) } }
+                ScreenErrorView(error: error, retry: { Task { await model.load(page: 1) } })
             }
             CardGrid(items: model.books, cardWidth: model.cardWidth) { book in
                 Button { navigate(.book(book.id)) } label: { BookCard(book: book, showSeries: true) }
