@@ -96,9 +96,17 @@ public struct LoginView: View {
             }
             .listRowBackground(Color.clear)
         }
+        .scrollContentBackground(.hidden)
         .frame(maxWidth: 520)
-        .disabled(model.state == .loading && focused != nil)
+        .frame(maxWidth: .infinity)
+        .background(Self.groupedBackground.ignoresSafeArea())
     }
+
+    #if os(iOS)
+    private static let groupedBackground = Color(uiColor: .systemGroupedBackground)
+    #else
+    private static let groupedBackground = Color(nsColor: .windowBackgroundColor)
+    #endif
 
     private func autoLoginErrorView(_ error: String) -> some View {
         ContentUnavailableView {
