@@ -15,7 +15,8 @@ struct DestinationView: View {
         case .home:
             HomeScreen(model: factory.homeViewModel(), navigate: navigate, cardWidth: cardWidth)
         case .library(let id):
-            LibraryScreen(model: factory.libraryViewModel(libraryId: id), navigate: navigate)
+            LibraryScreen(model: factory.libraryViewModel(libraryId: id), navigate: navigate,
+                          selectLibrary: { navigator.replaceAll(.library($0)) })
                 .id(id)
         case .series(let id):
             SeriesScreen(model: factory.seriesViewModel(seriesId: id), navigate: navigate, onRead: onRead)
@@ -29,6 +30,11 @@ struct DestinationView: View {
             ReadListScreen(model: factory.readListViewModel(readListId: id), navigate: navigate)
         case .search(let query):
             SearchScreen(model: factory.searchViewModel(query: query), cardWidth: cardWidth, navigate: navigate)
+        case .downloads:
+            DownloadsView(cardWidth: cardWidth, navigate: navigate)
+        case .settings:
+            // Resolved by `AppRootView`, which holds the composition root this view does not see.
+            EmptyView()
         }
     }
 

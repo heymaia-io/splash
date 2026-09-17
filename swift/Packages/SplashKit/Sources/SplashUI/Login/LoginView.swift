@@ -33,7 +33,7 @@ public struct LoginView: View {
     private var form: some View {
         Form {
             Section {
-                TextField("Server URL", text: $model.url, prompt: Text(verbatim: "localhost:25600"))
+                TextField("Server URL", text: $model.url, prompt: Text(verbatim: "https://yourserver.com"))
                     .textContentType(.URL)
                     .autocorrectionDisabled()
                     .focused($focused, equals: .url)
@@ -119,6 +119,7 @@ public struct LoginView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .safeAreaPadding(.top, 24)
         .frame(maxWidth: 520)
         .frame(maxWidth: .infinity)
         .background(Self.groupedBackground.ignoresSafeArea())

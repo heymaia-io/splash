@@ -1,204 +1,154 @@
 import KomgaAPI
 import SwiftUI
 
-/// Port of `MainScreen.kt`.
+/// The app's top-level sections.
 ///
-/// DESIGN DEVIATION (plan Phase 4, documented on purpose): the Kotlin app picks `MobileLayout` vs
-/// `DesktopLayout` by *platform*, so phones and tablets would both get the mobile layout. On iOS the layout
-/// is chosen by *window width*: compact → mobile layout (bottom bar + libraries drawer), otherwise → the
-/// desktop layout expressed as a `NavigationSplitView` (sidebar permanently visible at `FULL` width,
-/// collapsible below it, like the Kotlin nav rail / modal drawer split).
+/// DESIGN DEVIATION (documented on purpose): the Kotlin app puts these behind a nav rail / modal drawer
+/// (`MobileLayout` vs `DesktopLayout`). On iOS they live in a single floating tab picker in the navigation
+/// bar, which iOS 26 renders as the centred glass capsule the design references show.
+public enum MainTab: String, CaseIterable, Identifiable, Sendable {
+    case home
+    case library
+    case downloads
+    case settings
+
+    public var id: String { rawValue }
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .home: "Home"
+        case .library: "Library"
+        case .downloads: "Downloads"
+        case .settings: "Settings"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .home: "house"
+        case .library: "books.vertical"
+        case .downloads: "arrow.down.circle"
+        case .settings: "gearshape"
+        }
+    }
+
+    /// The destination a tab resets to when it is selected.
+    var root: Destination {
+        switch self {
+        case .home: .home
+        case .library: .library(nil)
+        case .downloads: .downloads
+        case .settings: .settings
+        }
+    }
+
+    /// Which tab owns a root destination. `library(id)` keeps Library lit while browsing a single library;
+    /// pushed content (series, book, search…) leaves the owning tab selected because only the *root* is
+    /// consulted.
+    static func owning(_ destination: Destination) -> MainTab? {
+        switch destination {
+        case .home: .home
+        case .library: .library
+        case .downloads: .downloads
+        case .settings: .settings
+        default: nil
+        }
+    }
+}
+
+/// Port of `MainScreen.kt`: the floating tab picker plus the navigation stack for the selected tab.
 public struct MainShellView<Content: View>: View {
     @Bindable var model: MainScreenViewModel
-    let onOpenSettings: () -> Void
     let content: (Destination) -> Content
 
-    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
-
-    public init(
-        model: MainScreenViewModel, onOpenSettings: @escaping () -> Void,
-        @ViewBuilder content: @escaping (Destination) -> Content
-    ) {
+    public init(model: MainScreenViewModel, @ViewBuilder content: @escaping (Destination) -> Content) {
         self.model = model
-        self.onOpenSettings = onOpenSettings
         self.content = content
     }
 
     public var body: some View {
-        GeometryReader { proxy in
-            let width = WindowSizeClass.from(width: proxy.size.width)
-            Group {
-                if width == .compact {
-                    mobileLayout
-                } else {
-                    desktopLayout(width: width)
-                }
-            }
-            .onChange(of: width, initial: true) { _, newWidth in
-                columnVisibility = newWidth == .full ? .all : .detailOnly
-            }
-        }
-    }
-
-    // MARK: Mobile
-
-    private var mobileLayout: some View {
-        VStack(spacing: 0) {
-            detailStack
-            Divider()
-            HStack {
-                CompactNavButton(title: "Libraries", systemImage: "books.vertical", isSelected: false) {
-                    model.toggleNavBar()
-                }
-                CompactNavButton(title: "Home", systemImage: "house", isSelected: model.navigator.lastItem == .home) {
-                    model.navigator.replaceAll(.home)
-                }
-                CompactNavButton(title: "Search", systemImage: "magnifyingglass", isSelected: isSearch) {
-                    model.navigator.push(.search(nil))
-                }
-                CompactNavButton(title: "Settings", systemImage: "gearshape", isSelected: false, action: onOpenSettings)
-            }
-            .padding(.top, 6)
-            .background(.bar)
-        }
-        .sheet(isPresented: $model.isNavBarOpen) {
-            NavigationStack {
-                LibrariesNavList(model: model, onSelect: { model.isNavBarOpen = false })
-                    .navigationTitle("Libraries")
-                    #if os(iOS)
-                    .navigationBarTitleDisplayMode(.inline)
-                    #endif
-            }
-            .presentationDetents([.medium, .large])
-        }
-    }
-
-    private var isSearch: Bool {
-        if case .search = model.navigator.lastItem { true } else { false }
-    }
-
-    // MARK: Desktop / iPad
-
-    private func desktopLayout(width: WindowSizeClass) -> some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            List {
-                Section {
-                    NavRow(title: "Home", systemImage: "house", selected: model.navigator.root == .home) {
-                        select(.home, width: width)
-                    }
-                    NavRow(title: "Libraries", systemImage: "books.vertical",
-                           selected: model.navigator.root == .library(nil)) {
-                        select(.library(nil), width: width)
-                    }
-                }
-                Section("Libraries") {
-                    ForEach(model.libraries) { library in
-                        NavRow(title: library.name, systemImage: "folder",
-                               selected: model.navigator.root == .library(library.id)) {
-                            select(.library(library.id), width: width)
-                        }
-                    }
-                }
-                if let status = model.taskQueueStatus, status.count > 0 {
-                    Section {
-                        Label("\(status.count) tasks in queue", systemImage: "hourglass")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Section {
-                    NavRow(title: "Settings", systemImage: "gearshape", selected: false, action: onOpenSettings)
-                }
-            }
-            .navigationTitle("Splash")
-        } detail: {
-            detailStack
-        }
-    }
-
-    private func select(_ destination: Destination, width: WindowSizeClass) {
-        model.navigator.replaceAll(destination)
-        if width != .full { columnVisibility = .detailOnly }
-    }
-
-    // MARK: Shared
-
-    private var detailStack: some View {
         NavigationStack(path: Bindable(model.navigator).stack) {
-            content(model.navigator.root)
+            rootScreen
                 .navigationDestination(for: Destination.self) { content($0) }
         }
         .id(model.navigator.root)  // replaceAll => fresh stack, like Voyager
     }
+
+    /// Only the *root* of a tab carries the tab picker and the search field: pushed screens get the usual
+    /// back button and their own title instead.
+    private var rootScreen: some View {
+        content(model.navigator.root)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    MainTabPicker(selection: tabBinding)
+                }
+            }
+            .modifier(GlobalSearchField(query: $model.searchQuery, isEnabled: isSearchable, submit: submitSearch))
+    }
+
+    private var tabBinding: Binding<MainTab> {
+        Binding(
+            get: { MainTab.owning(model.navigator.root) ?? .home },
+            set: { model.navigator.replaceAll($0.root) })
+    }
+
+    /// Search is global, so it rides along on every root screen — except Settings, which has nothing to
+    /// search, and the search results screen itself, which owns the field that refines its own results.
+    private var isSearchable: Bool {
+        switch model.navigator.root {
+        case .settings, .search: false
+        default: true
+        }
+    }
+
+    private func submitSearch() {
+        let term = model.searchQuery.trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty else { return }
+        model.searchQuery = ""
+        model.navigator.push(.search(term))
+    }
 }
 
-struct LibrariesNavList: View {
-    let model: MainScreenViewModel
-    let onSelect: () -> Void
+// MARK: - Tab picker
+
+/// Segmented picker sized to its labels. iOS 26 draws toolbar content as floating glass, so no background
+/// is applied here — doing so would stack a second capsule inside the system's.
+private struct MainTabPicker: View {
+    @Binding var selection: MainTab
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
-        List {
-            NavRow(title: "All libraries", systemImage: "books.vertical",
-                   selected: model.navigator.root == .library(nil)) {
-                model.navigator.replaceAll(.library(nil))
-                onSelect()
-            }
-            ForEach(model.libraries) { library in
-                NavRow(title: library.name, systemImage: "folder",
-                       selected: model.navigator.root == .library(library.id)) {
-                    model.navigator.replaceAll(.library(library.id))
-                    onSelect()
+        Picker("Section", selection: $selection) {
+            ForEach(MainTab.allCases) { tab in
+                // Four words do not fit across a phone; icons carry the same four destinations there.
+                if sizeClass == .compact {
+                    Label(tab.title, systemImage: tab.systemImage).labelStyle(.iconOnly).tag(tab)
+                } else {
+                    Text(tab.title).tag(tab)
                 }
             }
         }
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 }
 
-struct NavRow: View {
-    let title: LocalizedStringKey
-    let systemImage: String
-    let selected: Bool
-    let action: () -> Void
+// MARK: - Search
 
-    init(title: LocalizedStringKey, systemImage: String, selected: Bool, action: @escaping () -> Void) {
-        self.title = title
-        self.systemImage = systemImage
-        self.selected = selected
-        self.action = action
-    }
+/// Applies `.searchable` conditionally. A plain `if` in the view body would give the two branches different
+/// identities and reset the navigation stack whenever the flag flips.
+private struct GlobalSearchField: ViewModifier {
+    @Binding var query: String
+    let isEnabled: Bool
+    let submit: () -> Void
 
-    init(title: String, systemImage: String, selected: Bool, action: @escaping () -> Void) {
-        self.init(title: LocalizedStringKey(stringLiteral: title), systemImage: systemImage, selected: selected,
-                  action: action)
-    }
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .foregroundStyle(selected ? Color.accentColor : Color.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .searchable(text: $query, prompt: Text("Search all libraries"))
+                .onSubmit(of: .search, submit)
+        } else {
+            content
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-}
-
-struct CompactNavButton: View {
-    let title: LocalizedStringKey
-    let systemImage: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 2) {
-                Image(systemName: systemImage).font(.title3)
-                Text(title).font(.caption2)
-            }
-            .frame(maxWidth: .infinity)
-            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

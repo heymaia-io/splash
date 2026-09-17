@@ -26,7 +26,6 @@ public struct AppRootView: View {
     private let session: any AppSession
     @State private var loginModel: LoginViewModel
     @State private var mainModel: MainScreenViewModel?
-    @State private var showSettings = false
     @State private var readingBook: SplashBook?
     @State private var epubModel: EpubReaderModel?
     @State private var openedInitialBook = false
@@ -89,25 +88,24 @@ public struct AppRootView: View {
     }
 
     private func main(_ model: MainScreenViewModel) -> some View {
-        MainShellView(model: model, onOpenSettings: { showSettings = true }) { destination in
-            DestinationView(
-                destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
-                onRead: { open($0) })
+        MainShellView(model: model) { destination in
+            // Settings is the only destination that needs the composition root, so it is resolved here
+            // instead of in `DestinationView` (which only knows the view-model factory).
+            switch destination {
+            case .settings:
+                SettingsView(session: session, isEmbedded: true) {
+                    loginModel = LoginViewModel(session: session)
+                }
+            default:
+                DestinationView(
+                    destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
+                    onRead: { open($0) })
+            }
         }
         .task {
             if let initialBook, !openedInitialBook {
                 openedInitialBook = true
                 open(initialBook)
-            }
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView(session: session, extraSections: AnyView(
-                NavigationLink { DownloadsSettingsView() } label: {
-                    Label("Downloads & offline", systemImage: "arrow.down.circle")
-                }
-            )) {
-                showSettings = false
-                loginModel = LoginViewModel(session: session)
             }
         }
         #if os(iOS)

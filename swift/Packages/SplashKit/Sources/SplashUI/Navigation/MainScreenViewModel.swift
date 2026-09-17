@@ -9,8 +9,9 @@ import Observation
 public final class MainScreenViewModel {
     public let navigator: MainNavigator
     public private(set) var taskQueueStatus: KomgaEvent.TaskQueueStatusPayload?
-    /// Drawer / sidebar visibility (`navBarState`).
-    public var isNavBarOpen = false
+    /// Text in the global search field. It lives on the shell rather than on a screen so the same field
+    /// follows the user across every tab and every pushed screen.
+    public var searchQuery = ""
 
     private let authState: KomgaAuthenticationState
     private var eventTask: Task<Void, Never>?
@@ -21,8 +22,6 @@ public final class MainScreenViewModel {
     }
 
     public var libraries: [KomgaLibrary] { authState.libraries }
-
-    public func toggleNavBar() { isNavBarOpen.toggle() }
 
     /// `startEventListener()` — call with the shared event stream (Phase 7 wires the live SSE session).
     public func startListening(to events: AsyncStream<KomgaEvent>) {

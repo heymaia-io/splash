@@ -82,6 +82,8 @@ public final class LibraryViewModel {
     }
 
     public var library: KomgaLibrary? { authState.libraries.first { $0.id == libraryId } }
+    /// Drives the library switcher below the title (the rows the sidebar used to hold).
+    public var libraries: [KomgaLibrary] { authState.libraries }
     public var cardWidth: CGFloat { CGFloat(settings.value.cardWidth) }
 
     public func initialize() async {
@@ -182,10 +184,13 @@ public final class LibraryViewModel {
 struct LibraryScreen: View {
     @State var model: LibraryViewModel
     let navigate: (Destination) -> Void
+    /// Switching library replaces the tab's root instead of pushing, so the stack stays one level deep.
+    let selectLibrary: (KomgaLibraryId?) -> Void
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                libraryPicker
                 if model.collectionsCount > 0 || model.readListsCount > 0 {
                     Picker("Section", selection: Binding(
                         get: { model.currentTab }, set: { tab in Task { await model.onTabChange(tab) } })
@@ -213,12 +218,9 @@ struct LibraryScreen: View {
             }
             .padding(.vertical)
         }
-        .navigationTitle(model.library?.name ?? String(localized: "All libraries"))
-        .searchable(text: $model.searchTerm, prompt: "Search series")
-        .onSubmit(of: .search) { Task { await model.onFilterChange() } }
-        .onChange(of: model.searchTerm) { _, term in
-            if term.isEmpty { Task { await model.onFilterChange() } }
-        }
+        .navigationTitle("Library")
+        // No library-scoped search field here: the shell's search bar is global by design, so searching from
+        // inside a library queries every library instead of silently filtering the current one.
         .toolbar {
             Menu {
                 Picker("Sort", selection: $model.sort) {
@@ -231,6 +233,28 @@ struct LibraryScreen: View {
         .onChange(of: model.sort) { Task { await model.onFilterChange() } }
         .task { await model.initialize() }
         .refreshable { await model.reload() }
+    }
+
+    /// Library switcher, styled as the chip under the large title in the design references.
+    private var libraryPicker: some View {
+        Menu {
+            Picker("Library", selection: Binding(get: { model.libraryId }, set: selectLibrary)) {
+                Text("All Libraries").tag(KomgaLibraryId?.none)
+                ForEach(model.libraries) { Text($0.name).tag(KomgaLibraryId?.some($0.id)) }
+            }
+        } label: {
+            Label {
+                Text(model.library?.name ?? String(localized: "All Libraries"))
+            } icon: {
+                Image(systemName: "books.vertical")
+            }
+            .font(.subheadline.weight(.medium))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal)
     }
 
     @ViewBuilder private var seriesTab: some View {

@@ -7,13 +7,15 @@ import SwiftUI
 /// Out of scope (plan): updates, Komf, ONNX, EPUB settings.
 public struct SettingsView: View {
     let session: any AppSession
-    let extraSections: AnyView?
+    /// True when hosted by the shell's Settings tab: the tab already provides the navigation stack and the
+    /// way back, so neither the wrapper nor the Done button is wanted. False keeps the modal presentation.
+    let isEmbedded: Bool
     let onLoggedOut: () -> Void
     @Environment(\.dismiss) private var dismiss
 
-    public init(session: any AppSession, extraSections: AnyView? = nil, onLoggedOut: @escaping () -> Void) {
+    public init(session: any AppSession, isEmbedded: Bool = false, onLoggedOut: @escaping () -> Void) {
         self.session = session
-        self.extraSections = extraSections
+        self.isEmbedded = isEmbedded
         self.onLoggedOut = onLoggedOut
     }
 
@@ -21,53 +23,60 @@ public struct SettingsView: View {
     private var api: any KomgaApi { session.viewModelFactory.apiProvider() }
 
     public var body: some View {
-        NavigationStack {
-            List {
-                Section("App") {
-                    NavigationLink { AppearanceSettingsView(settings: session.settings) } label: {
-                        Label("Appearance", systemImage: "paintbrush")
-                    }
-                    NavigationLink { ImageReaderSettingsView(settings: session.viewModelFactory.imageReaderSettings) } label: {
-                        Label("Image reader", systemImage: "book")
-                    }
-                    if let extraSections { extraSections }
+        if isEmbedded {
+            list
+        } else {
+            NavigationStack { list.toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            } }
+        }
+    }
+
+    private var list: some View {
+        List {
+            Section("App") {
+                NavigationLink { AppearanceSettingsView(settings: session.settings) } label: {
+                    Label("Appearance", systemImage: "paintbrush")
                 }
-                Section("Account") {
-                    NavigationLink { AccountSettingsView(session: session, onLoggedOut: onLoggedOut) } label: {
-                        Label("My account", systemImage: "person.crop.circle")
-                    }
-                    NavigationLink { AuthenticationActivityView(api: api, all: false) } label: {
-                        Label("My authentication activity", systemImage: "clock.arrow.circlepath")
-                    }
+                NavigationLink { ImageReaderSettingsView(settings: session.viewModelFactory.imageReaderSettings) } label: {
+                    Label("Image reader", systemImage: "book")
                 }
-                if isAdmin {
-                    Section("Server") {
-                        NavigationLink { ServerSettingsView(api: api, libraries: session.authState.libraries) } label: {
-                            Label("Server settings", systemImage: "server.rack")
-                        }
-                        NavigationLink { UsersView(api: api) } label: {
-                            Label("Users", systemImage: "person.2")
-                        }
-                        NavigationLink { AuthenticationActivityView(api: api, all: true) } label: {
-                            Label("Authentication activity", systemImage: "list.bullet.rectangle")
-                        }
-                        NavigationLink { MediaAnalysisView(api: api) } label: {
-                            Label("Media analysis", systemImage: "exclamationmark.triangle")
-                        }
-                        NavigationLink { AnnouncementsView(api: api) } label: {
-                            Label("Announcements", systemImage: "megaphone")
-                        }
-                    }
-                }
-                Section {
-                    NavigationLink { AboutView() } label: { Label("About", systemImage: "info.circle") }
+                NavigationLink { DownloadsSettingsView() } label: {
+                    Label("Downloads", systemImage: "arrow.down.circle")
                 }
             }
-            .navigationTitle("Settings")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            Section("Account") {
+                NavigationLink { AccountSettingsView(session: session, onLoggedOut: onLoggedOut) } label: {
+                    Label("My account", systemImage: "person.crop.circle")
+                }
+                NavigationLink { AuthenticationActivityView(api: api, all: false) } label: {
+                    Label("My authentication activity", systemImage: "clock.arrow.circlepath")
+                }
+            }
+            if isAdmin {
+                Section("Server") {
+                    NavigationLink { ServerSettingsView(api: api, libraries: session.authState.libraries) } label: {
+                        Label("Server settings", systemImage: "server.rack")
+                    }
+                    NavigationLink { UsersView(api: api) } label: {
+                        Label("Users", systemImage: "person.2")
+                    }
+                    NavigationLink { AuthenticationActivityView(api: api, all: true) } label: {
+                        Label("Authentication activity", systemImage: "list.bullet.rectangle")
+                    }
+                    NavigationLink { MediaAnalysisView(api: api) } label: {
+                        Label("Media analysis", systemImage: "exclamationmark.triangle")
+                    }
+                    NavigationLink { AnnouncementsView(api: api) } label: {
+                        Label("Announcements", systemImage: "megaphone")
+                    }
+                }
+            }
+            Section {
+                NavigationLink { AboutView() } label: { Label("About", systemImage: "info.circle") }
             }
         }
+        .navigationTitle("Settings")
     }
 }
 
@@ -444,6 +453,7 @@ struct AboutView: View {
                 NavigationLink("Third-party licenses") { LicensesView() }
             }
             Section {
+                Link("Splash on GitHub", destination: URL(string: "https://github.com/heymaia-io/splash")!)
                 Link("Komelia on GitHub", destination: URL(string: "https://github.com/Snd-R/Komelia")!)
                 Link("Komga", destination: URL(string: "https://komga.org")!)
             }

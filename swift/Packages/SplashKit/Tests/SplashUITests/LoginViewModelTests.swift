@@ -39,10 +39,11 @@ final class TestSession: LoginSession {
 struct LoginViewModelTests {
     let url = URL(string: "http://localhost:25601")!
 
-    @Test func withoutStoredSessionShowsFormWithEmptyFields() async {
+    @Test func withoutStoredSessionShowsFormPrefilledWithLastServer() async {
         let model = LoginViewModel(session: TestSession(serverURL: url))
         await model.initialize()
-        #expect(model.url.isEmpty)
+        // After a logout the cookie is gone but the server URL is kept, so the form comes back filled in.
+        #expect(model.url == url.absoluteString)
         #expect(model.autoLoginError == nil)
         if case .error = model.state {} else { Issue.record("expected error state, got \(model.state)") }
     }

@@ -88,7 +88,7 @@ public final class AppModule: AppSession {
         self.secrets = storage.secrets
         isOfflineMode = offlineSettings.isOfflineModeEnabled
 
-        let server = ServerURLHolder(URL(string: settings.value.serverUrl) ?? URL(string: AppSettings().serverUrl)!)
+        let server = ServerURLHolder(URL(string: settings.value.serverUrl) ?? AppSettings.unconfiguredServerURL)
         self.server = server
         let apiKeyStore = ApiKeyStore(secrets: storage.secrets)
         self.apiKeyStore = apiKeyStore
@@ -309,6 +309,13 @@ public final class AppModule: AppSession {
 // MARK: - Offline mode switching (`LoginViewModel.offlineLogin`, `MainScreenViewModel.goOnline`)
 
 extension AppModule: OfflineModeSwitching {
+    /// Reads the offline store directly (not `api`), so the shelf is identical online and offline.
+    public func downloadedSeries() async throws -> [KomgaSeries] {
+        try await offline.api.seriesApi
+            .getSeriesList(search: KomgaSeriesSearch(), pageRequest: KomgaPageRequest(unpaged: true))
+            .content
+    }
+
     public func offlineUsers() async -> [OfflineUserChoice] {
         (try? await offline.store.read { repos in
             try repos.users.findAll()

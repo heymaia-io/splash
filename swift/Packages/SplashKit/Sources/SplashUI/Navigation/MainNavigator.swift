@@ -12,6 +12,9 @@ public enum Destination: Hashable, Sendable {
     case collection(KomgaCollectionId)
     case readList(KomgaReadListId)
     case search(String?)
+    /// Tab roots that are not Komga content (`MainTab.downloads` / `.settings`).
+    case downloads
+    case settings
 }
 
 /// Explicit stack navigator mirroring Voyager's `Navigator` API (`push`, `pop`, `replace`, `replaceAll`,

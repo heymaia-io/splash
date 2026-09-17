@@ -10,6 +10,9 @@ public protocol OfflineModeSwitching: AnyObject {
     var isOfflineMode: Bool { get }
     /// Users with downloaded content (Kotlin `offlineIsAvailable` / `offlineUser`).
     func offlineUsers() async -> [OfflineUserChoice]
+    /// Series that have at least one downloaded book, read from the *offline* store regardless of the
+    /// current mode — the Downloads tab shows the same shelf whether the app is online or not.
+    func downloadedSeries() async throws -> [KomgaSeries]
     func goOffline(as userId: KomgaUserId) async throws
     func goOnline() async throws
 }
@@ -133,6 +136,8 @@ public final class OfflineController {
     // MARK: Mode
 
     public func offlineUsers() async -> [OfflineUserChoice] { await modeSwitch.offlineUsers() }
+
+    public func downloadedSeries() async throws -> [KomgaSeries] { try await modeSwitch.downloadedSeries() }
 
     public func goOffline(as userId: KomgaUserId) async {
         guard access.isUnlocked else { return access.requestUnlock() }

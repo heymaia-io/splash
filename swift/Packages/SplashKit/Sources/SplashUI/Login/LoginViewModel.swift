@@ -61,8 +61,9 @@ public final class LoginViewModel {
             state = .loading
             await tryAutoLogin()
         } else {
-            url = ""
-            user = ""
+            // The last server/username stay in the form after a logout: re-typing the server URL on every
+            // sign-in is pure friction, and neither value is a secret (the cookie/API key are, and those
+            // *are* cleared by `AppModule.logout()`).
             state = .error(String(localized: "Not logged in"))
         }
     }

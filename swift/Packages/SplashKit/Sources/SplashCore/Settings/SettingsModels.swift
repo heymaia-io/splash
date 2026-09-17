@@ -52,8 +52,15 @@ public enum UpsamplingMode: String, Codable, Sendable, CaseIterable {
 
 /// `snd.komelia.db.AppSettings` (update-check fields dropped: no in-app updater on iOS).
 public struct AppSettings: Codable, Hashable, Sendable {
-    public var username: String = "admin@example.org"
-    public var serverUrl: String = "http://localhost:25600"
+    /// Base URL used before a server has ever been configured. RFC 2606 reserves `.invalid`, so a request
+    /// against it fails immediately and visibly. The Kotlin app defaults to `http://localhost:25600`, which
+    /// is right for a desktop client sitting on the same machine as Komga and wrong everywhere else — on a
+    /// phone or tablet it points at the device itself.
+    public static let unconfiguredServerURL = URL(string: "http://unconfigured.invalid")!
+
+    /// Empty until the user logs in: the login form shows its placeholder instead of a guess.
+    public var username: String = ""
+    public var serverUrl: String = ""
     public var cardWidth: Int = 170
     public var seriesPageLoadSize: Int = 20
     public var bookPageLoadSize: Int = 20

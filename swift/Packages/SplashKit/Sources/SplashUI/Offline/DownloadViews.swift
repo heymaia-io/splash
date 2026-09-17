@@ -180,3 +180,92 @@ struct OfflineBanner: View {
         .background(.orange.opacity(0.2))
     }
 }
+
+/// The Downloads *tab*: the shelf of what is on the device. Configuration (offline mode, Wi-Fi, storage,
+/// the transfer list) lives in Settings → Downloads, so this screen stays a library view rather than a
+/// settings form.
+struct DownloadsView: View {
+    let cardWidth: CGFloat
+    let navigate: (Destination) -> Void
+    @Environment(\.offlineController) private var offline
+    @State private var series: [KomgaSeries] = []
+    @State private var state: LoadState<Void> = .uninitialized
+
+    var body: some View {
+        Group {
+            if let offline {
+                content(offline)
+            } else {
+                ContentUnavailableView("Offline mode unavailable", systemImage: "icloud.slash")
+            }
+        }
+        .navigationTitle("Downloads")
+    }
+
+    @ViewBuilder private func content(_ offline: OfflineController) -> some View {
+        if !offline.access.isUnlocked {
+            locked(offline)
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    activeTransfers(offline)
+                    switch state {
+                    case .error(let error):
+                        ErrorView(error: error) { Task { await load(offline) } }
+                    case .uninitialized, .loading where series.isEmpty:
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+                    default:
+                        if series.isEmpty, offline.sortedDownloads.isEmpty {
+                            ContentUnavailableView("No downloads", systemImage: "arrow.down.circle",
+                                                   description: Text("Books you download appear here."))
+                        } else {
+                            CardGrid(items: series, cardWidth: cardWidth) { item in
+                                Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
+                                    SeriesCard(series: item)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical)
+            }
+            .refreshable { await load(offline) }
+            .task(id: offline.downloads.count) { await load(offline) }
+        }
+    }
+
+    /// Offline reading is the paid feature, so the tab doubles as the storefront until it is unlocked.
+    private func locked(_ offline: OfflineController) -> some View {
+        ContentUnavailableView {
+            Label("Offline reading is locked", systemImage: "lock")
+        } description: {
+            Text("Download comics, PDFs and EPUBs and read them without a connection.")
+        } actions: {
+            Button("Unlock offline reading") { offline.access.requestUnlock() }
+                .buttonStyle(.borderedProminent)
+        }
+    }
+
+    @ViewBuilder private func activeTransfers(_ offline: OfflineController) -> some View {
+        let active = offline.sortedDownloads.filter { $0.status == .queued || $0.status == .downloading || $0.status == .failed }
+        if !active.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("In progress").font(.title3.bold()).padding(.horizontal)
+                ForEach(active) { download in
+                    DownloadRow(download: download, offline: offline).padding(.horizontal)
+                }
+            }
+        }
+    }
+
+    private func load(_ offline: OfflineController) async {
+        state = .loading
+        do {
+            series = try await offline.downloadedSeries()
+            state = .success(())
+        } catch {
+            state = .error(error)
+        }
+    }
+}
