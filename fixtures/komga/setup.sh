@@ -7,6 +7,7 @@ EMAIL="admin@fixture.local"
 PASS="fixture-password"
 
 python3 generate_library.py
+mkdir -p data/no-extra
 docker compose up -d
 
 echo "waiting for Komga..."
@@ -15,7 +16,7 @@ until curl -sf "$BASE/api/v1/claim" >/dev/null; do sleep 2; done
 curl -sf -X POST "$BASE/api/v1/claim" -H "X-Komga-Email: $EMAIL" -H "X-Komga-Password: $PASS" >/dev/null || true
 AUTH=(-u "$EMAIL:$PASS")
 
-lib_id() { curl -sf "${AUTH[@]}" "$BASE/api/v1/libraries" | python3 -c "import json,sys; print(next((l['id'] for l in json.load(sys.stdin) if l['name']=='$1'),''))"; }
+lib_id() { curl -sf "${AUTH[@]}" "$BASE/api/v1/libraries" | python3 -c "import json,sys; print(next((l['id'] for l in json.load(sys.stdin) if l['name']==sys.argv[1]),''))" "$1"; }
 create_lib() {
   [ -n "$(lib_id "$1")" ] && return 0
   curl -sf "${AUTH[@]}" -X POST "$BASE/api/v1/libraries" -H 'Content-Type: application/json' -d "$2" >/dev/null
@@ -23,6 +24,16 @@ create_lib() {
 create_lib Comics  '{"name":"Comics","root":"/data/Comics","oneshotsDirectory":"_oneshots"}'
 create_lib Manga   '{"name":"Manga","root":"/data/Manga"}'
 create_lib Webtoon '{"name":"Webtoon","root":"/data/Webtoon"}'
+
+# One extra library per top-level folder of the optional read-only mount.
+if [ -f .env ]; then set -a; . ./.env; set +a; fi
+if [ -n "${KOMGA_EXTRA_LIBRARY_DIR:-}" ] && [ -d "$KOMGA_EXTRA_LIBRARY_DIR" ]; then
+  for dir in "$KOMGA_EXTRA_LIBRARY_DIR"/*/; do
+    name=$(basename "$dir")
+    body=$(python3 -c "import json,sys; print(json.dumps({'name': sys.argv[1], 'root': '/extra/' + sys.argv[1]}))" "$name")
+    create_lib "$name" "$body" || echo "could not create library $name"
+  done
+fi
 
 echo "waiting for scan/analysis..."
 for _ in $(seq 1 60); do

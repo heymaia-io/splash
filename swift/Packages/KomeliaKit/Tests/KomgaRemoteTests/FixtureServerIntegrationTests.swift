@@ -56,7 +56,8 @@ struct FixtureServerIntegrationTests {
         let (api, _) = try await FixtureServer.loggedInApi()
 
         let libraries = try await api.libraryApi.getLibraries()
-        #expect(libraries.count == 3)
+        // Extra personal libraries may be mounted (fixtures/komga/.env), so only assert the synthetic ones.
+        #expect(Set(["Comics", "Manga", "Webtoon"]).isSubset(of: Set(libraries.map(\.name))))
         let comics = try #require(libraries.first { $0.name == "Comics" })
         #expect(try await api.libraryApi.getLibrary(comics.id).id == comics.id)
 
@@ -86,7 +87,7 @@ struct FixtureServerIntegrationTests {
         #expect(try await api.seriesApi.getDefaultThumbnail(hero.id) != nil)
         #expect(try await api.bookApi.getDefaultThumbnail("DOESNOTEXIST") == nil)
 
-        #expect(try await api.bookApi.getLatestBooks().totalElements == 12)
+        #expect(try await api.bookApi.getLatestBooks().totalElements >= 12)
         _ = try await api.bookApi.getBooksOnDeck(libraryIds: [comics.id])
         #expect(try await api.seriesApi.getNewSeries(libraryIds: [comics.id]).totalElements == 3)
         _ = try await api.seriesApi.getUpdatedSeries()  // content depends on server-side edits
@@ -125,7 +126,9 @@ struct FixtureServerIntegrationTests {
 
     @Test func readProgressRoundTripAndSSE() async throws {
         let (api, _) = try await FixtureServer.loggedInApi()
-        let book = try #require(try await api.bookApi.getLatestBooks().content.first)
+        // Page-based progress is DIVINA-only (Komga answers 400 for EPUB books).
+        let book = try #require(try await api.bookApi.getBookList(
+            condition: .allOfBooks(.title(.isEqualTo("Fixture Hero #1")))).content.first)
 
         let session = try await api.createSSESession()
         defer { session.cancel() }
@@ -175,7 +178,8 @@ struct FixtureServerIntegrationTests {
 
     @Test func bookFileDownloadRequest() async throws {
         let (api, _) = try await FixtureServer.loggedInApi()
-        let book = try #require(try await api.bookApi.getLatestBooks().content.first)
+        let book = try #require(try await api.bookApi.getBookList(
+            condition: .allOfBooks(.title(.isEqualTo("Fixture Hero #1")))).content.first)
         let (data, response) = try await URLSession.shared.data(for: api.remoteBookApi.bookFileRequest(book.id))
         #expect((response as? HTTPURLResponse)?.statusCode == 200)
         #expect(Int64(data.count) == book.sizeBytes)

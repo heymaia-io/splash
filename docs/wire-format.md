@@ -130,6 +130,8 @@ used for method semantics; its source is cloned (read-only) at `reference/komga-
   the Kotlin client sent `authors=` (ignored by the server — bug, fixed).
 - `GET /api/v1/books/{id}/file` **ignores `Range`** → download resume is impossible; retries restart.
 - Genres are returned lowercased.
+- `PATCH /api/v1/books/{id}/read-progress` with a `page` returns **400 for EPUB books** (page progress is
+  DIVINA/PDF only; EPUB uses the Readium progression endpoints).
 - Login: `GET /api/v2/users/me?remember-me=true` with Basic auth sets `KOMGA-SESSION` + `komga-remember-me`
   (`Path=/`); subsequent cookie-only requests are authenticated. Unauthenticated → 401.
 - SSE: `GET /sse/v1/events` (`text/event-stream`), event name = Kotlin class name, data = JSON payload.

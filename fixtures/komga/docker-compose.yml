@@ -10,6 +10,8 @@ services:
     volumes:
       - ./data/config:/config
       - ./data/libraries:/data:ro
+      # Optional personal library (set KOMGA_EXTRA_LIBRARY_DIR in the gitignored .env). Always read-only.
+      - ${KOMGA_EXTRA_LIBRARY_DIR:-./data/no-extra}:/extra:ro
     environment:
       - TZ=UTC
     restart: "no"

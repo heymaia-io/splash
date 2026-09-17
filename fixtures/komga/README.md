@@ -12,6 +12,9 @@ docker compose down        # stop (data persists in ./data, gitignored)
 - 1 collection (`Fixture Collection`), 1 ordered read list (`Fixture Read List`)
 - `openapi.json`: `GET /v3/api-docs` snapshot, the wire-format source of truth (see `docs/wire-format.md`)
 
+Personal comics: put `KOMGA_EXTRA_LIBRARY_DIR=/path/to/comics` in `fixtures/komga/.env` (gitignored) and re-run
+`./setup.sh`; the folder is mounted **read-only** at `/extra` and each top-level folder becomes a library.
+
 Server facts verified against this fixture (Komga 1.27.0):
 - `GET /api/v1/books/{id}/file` **ignores `Range`** (always `200` + full body) → download resume via `resumeData` is not possible; retries restart from zero.
 - Timestamps are ISO-8601, with *and* without fractional seconds (`2026-09-17T08:08:36Z`, `...57.524+00:00`).

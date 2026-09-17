@@ -62,7 +62,7 @@ struct LoginViewModelTests {
         #expect(session.switchedTo == ["http://localhost:25601"])
         #expect(session.settings.value.username == "admin@fixture.local")
         #expect(session.authState.state == .loaded)
-        #expect(session.authState.libraries.count == 3)
+        #expect(session.authState.libraries.count >= 3)
         #expect(model.password.isEmpty)
     }
 
