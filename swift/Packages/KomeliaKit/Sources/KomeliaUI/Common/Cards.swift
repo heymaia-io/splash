@@ -18,17 +18,20 @@ struct CardGrid<Item: Identifiable, Card: View>: View {
 }
 
 /// Cover + caption card shared by series/book/collection/read-list cards (`ItemCard.kt`).
-struct ItemCard<Overlay: View>: View {
+struct ItemCard<Overlay: View, Footer: View>: View {
     let thumbnail: ThumbnailRequest
     let title: String
     let subtitle: String?
     @ViewBuilder var overlay: () -> Overlay
+    /// Drawn over the bottom of the cover (read progress), never over the caption.
+    @ViewBuilder var coverFooter: () -> Footer
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ThumbnailView(thumbnail)
                 .aspectRatio(0.703, contentMode: .fit)  // Komga cover ratio
                 .overlay(alignment: .topTrailing) { overlay().padding(4) }
+                .overlay(alignment: .bottom) { coverFooter() }
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
             Text(title)
@@ -42,9 +45,18 @@ struct ItemCard<Overlay: View>: View {
     }
 }
 
-extension ItemCard where Overlay == EmptyView {
+extension ItemCard where Footer == EmptyView {
+    init(
+        thumbnail: ThumbnailRequest, title: String, subtitle: String?,
+        @ViewBuilder overlay: @escaping () -> Overlay
+    ) {
+        self.init(thumbnail: thumbnail, title: title, subtitle: subtitle, overlay: overlay) { EmptyView() }
+    }
+}
+
+extension ItemCard where Overlay == EmptyView, Footer == EmptyView {
     init(thumbnail: ThumbnailRequest, title: String, subtitle: String?) {
-        self.init(thumbnail: thumbnail, title: title, subtitle: subtitle) { EmptyView() }
+        self.init(thumbnail: thumbnail, title: title, subtitle: subtitle) { EmptyView() } coverFooter: { EmptyView() }
     }
 }
 
@@ -96,16 +108,18 @@ struct BookCard: View {
                         .accessibilityLabel("Unread")
                 }
             }
+        } coverFooter: {
+            progressBar
         }
-        .overlay(alignment: .bottom) { progressBar }
     }
 
     @ViewBuilder private var progressBar: some View {
         if let progress = book.readProgress, !progress.completed, book.media.pagesCount > 0 {
             ProgressView(value: Double(progress.page), total: Double(book.media.pagesCount))
                 .progressViewStyle(.linear)
-                .padding(.horizontal, 4)
-                .padding(.bottom, 44)
+                .tint(.accentColor)
+                .padding(6)
+                .background(.black.opacity(0.35))
         }
     }
 }

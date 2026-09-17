@@ -93,6 +93,9 @@ public struct ImageReaderSettings: Codable, Hashable, Sendable {
 public struct EpubReaderSettings: Codable, Hashable, Sendable {
     public enum Theme: String, Codable, Sendable, CaseIterable { case light, sepia, dark }
     public enum FontFamily: String, Codable, Sendable, CaseIterable { case publisher, serif, sansSerif, openDyslexic }
+    /// Columns per screen in paginated mode. `auto` follows the publisher/viewport (two columns on wide
+    /// screens), which leaves a short chapter looking half empty — hence `one` by default.
+    public enum ColumnCount: String, Codable, Sendable, CaseIterable { case auto, one, two }
 
     public var fontSize: Double = 1.0
     public var fontFamily: FontFamily = .publisher
@@ -101,6 +104,7 @@ public struct EpubReaderSettings: Codable, Hashable, Sendable {
     public var lineHeight: Double? = nil
     public var pageMargins: Double = 1.0
     public var publisherStyles: Bool = true
+    public var columnCount: ColumnCount = .one
 
     public init() {}
 }

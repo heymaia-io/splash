@@ -130,6 +130,7 @@ enum ManifestRelativizer {
 extension EpubReaderSettings {
     var readiumPreferences: EPUBPreferences {
         EPUBPreferences(
+            columnCount: columnCount.readium,
             fontFamily: fontFamily.readium,
             fontSize: fontSize,
             lineHeight: lineHeight,
@@ -137,6 +138,16 @@ extension EpubReaderSettings {
             publisherStyles: publisherStyles,
             scroll: scroll,
             theme: theme.readium)
+    }
+}
+
+extension EpubReaderSettings.ColumnCount {
+    var readium: ReadiumNavigator.ColumnCount? {
+        switch self {
+        case .auto: .auto
+        case .one: .one
+        case .two: .two
+        }
     }
 }
 
@@ -387,6 +398,12 @@ struct EpubSettingsSheet: View {
                 LabeledContent("Margins") {
                     Slider(value: bind(\.pageMargins), in: 0.5...2, step: 0.25)
                 }
+                Picker("Columns", selection: bind(\.columnCount)) {
+                    Text("One").tag(EpubReaderSettings.ColumnCount.one)
+                    Text("Two").tag(EpubReaderSettings.ColumnCount.two)
+                    Text("Automatic").tag(EpubReaderSettings.ColumnCount.auto)
+                }
+                .disabled(settings.scroll)
                 Toggle("Scroll instead of pages", isOn: bind(\.scroll))
                 Toggle("Publisher styles", isOn: bind(\.publisherStyles))
             }
