@@ -16,6 +16,8 @@ public protocol AppSession: LoginSession {
     var epubSettings: EpubReaderSettingsRepository { get }
     /// Local file when the book is downloaded and we are offline, the Komga manifest otherwise.
     func epubSource(for book: KomeliaBook) async -> EpubSource?
+    /// nil when purchases are not configured (tests/previews) — offline is then unrestricted.
+    var entitlements: OfflineEntitlementStore? { get }
 }
 
 /// Port of `MainView.kt`'s root navigator: Login ↔ main shell, driven by the authentication state.
@@ -67,6 +69,12 @@ public struct AppRootView: View {
         .environment(\.offlineController, session.offlineController)
         .preferredColorScheme(session.settings.value.appTheme.colorScheme)
         .background(session.settings.value.appTheme == .darker ? Color.black.ignoresSafeArea() : nil)
+        .sheet(isPresented: Binding(
+            get: { session.entitlements?.isPaywallPresented ?? false },
+            set: { session.entitlements?.isPaywallPresented = $0 })
+        ) {
+            if let store = session.entitlements { PaywallView(store: store) }
+        }
         .onChange(of: session.authState.state) { _, state in
             if state == .authenticationRequired {
                 mainModel?.stopListening()

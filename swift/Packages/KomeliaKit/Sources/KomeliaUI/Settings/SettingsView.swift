@@ -439,8 +439,9 @@ struct AboutView: View {
         Form {
             LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
             Section {
-                Text("Komelia for iOS is a free Komga client, ported from the open-source Komelia project.")
+                Text("A client for Komga servers. Reading online is free and unlimited; offline reading is a one-time purchase.")
                 Text("Privacy: the app collects no data. Everything stays on your device and your Komga server.")
+                NavigationLink("Third-party licenses") { LicensesView() }
             }
             Section {
                 Link("Komelia on GitHub", destination: URL(string: "https://github.com/Snd-R/Komelia")!)

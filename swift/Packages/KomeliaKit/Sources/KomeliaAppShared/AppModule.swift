@@ -48,6 +48,7 @@ public final class AppModule: AppSession {
     public let offlineSettings: OfflineSettingsStateRepository
     public let remoteApi: RemoteKomgaApi
     public private(set) var offlineController: OfflineController?
+    public private(set) var entitlements: OfflineEntitlementStore?
     /// Changes whenever the active API switches (online ↔ offline) so the UI rebuilds its screens.
     public private(set) var contentGeneration = 0
     public private(set) var isOfflineMode: Bool
@@ -178,6 +179,15 @@ public final class AppModule: AppSession {
                 identifier: downloadSessionIdentifier,
                 allowsCellularAccess: { !UserDefaults.standard.bool(forKey: wifiOnlyKey) }))
         return try await make(storage: storage, accessPolicy: accessPolicy)
+    }
+
+    /// Production wiring of the paid offline unlock (plan Phase 16).
+    public static func makeDefaultWithStore() async throws -> AppModule {
+        let store = OfflineEntitlementStore(provider: StoreKitOfflineProvider())
+        let module = try await makeDefault(accessPolicy: store)
+        module.entitlements = store
+        await store.start()
+        return module
     }
 
     /// Late injection of the purchase-backed policy (Phase 16).

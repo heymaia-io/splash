@@ -24,7 +24,7 @@ final class AppBootstrap {
 
     func load() async throws -> AppModule {
         if let module { return module }
-        let created = try await AppModule.makeDefault()
+        let created = try await AppModule.makeDefaultWithStore()
         module = created
         for (identifier, completion) in pendingBackgroundEvents {
             created.handleBackgroundURLSessionEvents(identifier: identifier, completion: completion)
@@ -88,6 +88,9 @@ struct BootstrapView: View {
                 let created = try await bootstrap.load()
                 #if DEBUG
                 initialBook = await created.debugBootstrap(environment: ProcessInfo.processInfo.environment)
+                if ProcessInfo.processInfo.environment["KOMELIA_DEBUG_PAYWALL"] == "1" {
+                    created.entitlements?.requestUnlock()
+                }
                 #endif
                 module = created
             } catch {

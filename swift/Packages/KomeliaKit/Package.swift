@@ -44,7 +44,8 @@ let package = Package(
         // komelia-ui — SwiftUI screens + view models (depends only on protocols, never on concrete APIs)
         .target(
             name: "KomeliaUI",
-            dependencies: ["KomgaAPI", "KomeliaCore", "KomeliaImage", "KomeliaOffline"]),
+            dependencies: ["KomgaAPI", "KomeliaCore", "KomeliaImage", "KomeliaOffline"],
+            resources: [.process("Resources")]),
         // komelia-app/shared — composition root (AppModule)
         .target(
             name: "KomeliaAppShared",

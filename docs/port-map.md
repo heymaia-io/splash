@@ -30,16 +30,16 @@ Xcode wiring. Dependency direction is enforced by `Package.swift`.
 | F4 adaptive shell | ✅ | MainNavigator, WindowSizeClass, MainShellView (split view on iPad) |
 | F5 thumbnails | ✅ | ThumbnailLoader + ThumbnailView |
 | F6 library screens | ✅ | Home, Library, Series, Book, Oneshot, Collection, ReadList, Search (no filter editor) |
-| F7 SSE + live updates | 🟡 | LiveEventsController fan-out, scenePhase pause, thumbnail invalidation, per-screen reloads; needs on-device verification |
-| F8 image engine | ⬜ | |
-| F9 reader | ⬜ | |
-| F10 offline API | ⬜ | `OfflineBookStateProvider` seam already consumed by remote APIs |
-| F11 downloads | ⬜ | `RemoteBookApi.bookFileRequest` seam ready; server has no Range support |
-| F12 sync | ⬜ | |
-| F13 polish | 🟡 | Settings screens, theme, reader keyboard shortcuts, privacy manifest (in progress) |
-| F14 PDF | 🟡 | On-device vector rendering of Komga single-page PDFs; offline extraction pending |
-| F15 EPUB | ⬜ | Readium Swift Toolkit over Komga WebPub endpoints / local file |
-| F16 offline purchase | ⬜ | StoreKit 2 one-time $3.99 unlock gating downloads/offline mode; rename app (Apache-2.0 §6) |
+| F7 SSE + live updates | ✅ | LiveEventsController fan-out, scenePhase pause, thumbnail invalidation, per-screen reloads (verified in contract tests) |
+| F8 image engine | ✅ | ImageIO/Core Graphics, resolution-adaptive decoding (replaces tiling), crop borders |
+| F9 reader | ✅ | Paged (spreads, RTL, scale types, transitions) + continuous (webtoon), settings, keyboard |
+| F10 offline API | ✅ | OfflineKomgaApi over GRDB; offline login; online/offline switch |
+| F11 downloads | ✅ | Background URLSession, persisted state, XXH3 integrity, downloads UI (no resume: server lacks Range) |
+| F12 sync | ✅ | SyncManager (push progress, pull metadata, 6h throttle) triggered by the online user |
+| F13 polish | 🟡 | Settings, theme, keyboard, privacy manifest, licenses done; pending: rename/icon, App Store metadata, full accessibility audit, TestFlight |
+| F14 PDF | ✅ | Vector rendering online and offline (verified with real PDFs) |
+| F15 EPUB | ✅ | KomeliaEpubKit (Readium 3.11): online manifest with auth, offline file, progression sync, settings |
+| F16 offline purchase | 🟡 | StoreKit 2 entitlement + paywall + restore + revocation, local .storekit + shared scheme, licenses screen; pending: App Store Connect product, rename app |
 
 ## Symbol map
 
