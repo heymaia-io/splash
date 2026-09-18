@@ -16,11 +16,16 @@ public final class SearchViewModel {
     public private(set) var state: LoadState<Void> = .uninitialized
 
     private let api: any KomgaApi
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
     private var searchTask: Task<Void, Never>?
 
-    init(api: any KomgaApi, initialQuery: String) {
+    init(
+        api: any KomgaApi, initialQuery: String,
+        hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }
+    ) {
         self.api = api
         self.query = initialQuery
+        self.hiddenFilter = hiddenFilter
     }
 
     /// Debounced (the Kotlin search bar also debounces keystrokes).
@@ -42,13 +47,23 @@ public final class SearchViewModel {
             return
         }
         state = .loading
+        let hidden = hiddenFilter()
         do {
             let page = KomgaPageRequest(size: 50)
+            // Global search is the single most likely place for private content to leak, so it gets the
+            // same two passes as every listing: conditions where Komga supports them, then `visible(_:)`.
             async let series = api.seriesApi.getSeriesList(
-                search: KomgaSeriesSearch(fullTextSearch: term), pageRequest: page)
-            async let books = api.bookApi.getBookList(search: KomgaBookSearch(fullTextSearch: term), pageRequest: page)
-            self.series = try await series.content
-            self.books = try await books.content
+                search: KomgaSeriesSearch(
+                    condition: hidden.seriesConditions.isEmpty ? nil : .allOf(hidden.seriesConditions),
+                    fullTextSearch: term),
+                pageRequest: page)
+            async let books = api.bookApi.getBookList(
+                search: KomgaBookSearch(
+                    condition: hidden.bookConditions.isEmpty ? nil : .allOf(hidden.bookConditions),
+                    fullTextSearch: term),
+                pageRequest: page)
+            self.series = hidden.visible(try await series.content)
+            self.books = hidden.visible(try await books.content)
             state = .success(())
         } catch {
             if !Task.isCancelled { state = .error(error) }

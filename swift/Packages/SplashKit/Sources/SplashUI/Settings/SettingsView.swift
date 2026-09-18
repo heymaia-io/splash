@@ -12,6 +12,7 @@ public struct SettingsView: View {
     let isEmbedded: Bool
     let onLoggedOut: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.privacy) private var privacy
 
     public init(session: any AppSession, isEmbedded: Bool = false, onLoggedOut: @escaping () -> Void) {
         self.session = session
@@ -43,6 +44,13 @@ public struct SettingsView: View {
                 }
                 NavigationLink { DownloadsSettingsView() } label: {
                     Label("Downloads", systemImage: "arrow.down.circle")
+                }
+                // Only while unlocked: a permanent row here would be the visible entry point the private
+                // area is designed not to have.
+                if privacy?.isUnlocked == true {
+                    NavigationLink { PrivacySettingsView() } label: {
+                        Label("Private", systemImage: "lock")
+                    }
                 }
             }
             Section("Account") {

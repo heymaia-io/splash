@@ -51,6 +51,7 @@ struct BookDownloadButton: View {
 /// `settings/offline` + `settings/offline/downloads` (downloads list, storage, network, mode).
 public struct DownloadsSettingsView: View {
     @Environment(\.offlineController) private var offline
+    @Environment(\.privacy) private var privacy
     @State private var users: [OfflineUserChoice] = []
 
     public init() {}
@@ -60,6 +61,15 @@ public struct DownloadsSettingsView: View {
             content(offline)
         } else {
             ContentUnavailableView("Offline mode unavailable", systemImage: "icloud.slash")
+        }
+    }
+
+    /// Titles of private books must not appear in this list either.
+    private func visibleDownloads(_ offline: OfflineController) -> [BookDownload] {
+        let hidden = privacy?.filter() ?? .disabled
+        return offline.sortedDownloads.filter { download in
+            guard let seriesId = download.seriesId else { return true }
+            return !hidden.hidden.series.contains(seriesId) && !hidden.hidden.books.contains(download.bookId)
         }
     }
 
@@ -88,14 +98,15 @@ public struct DownloadsSettingsView: View {
             }
 
             Section("Downloads") {
-                if offline.sortedDownloads.isEmpty {
+                let visible = visibleDownloads(offline)
+                if visible.isEmpty {
                     Text("No downloads").foregroundStyle(.secondary)
                 }
-                ForEach(offline.sortedDownloads) { download in
+                ForEach(visible) { download in
                     DownloadRow(download: download, offline: offline)
                 }
                 .onDelete { indexes in
-                    for index in indexes { offline.delete(book: offline.sortedDownloads[index].bookId) }
+                    for index in indexes { offline.delete(book: visible[index].bookId) }
                 }
             }
             if offline.sortedDownloads.contains(where: { $0.status == .complete || $0.status == .failed }) {
@@ -188,6 +199,7 @@ struct DownloadsView: View {
     let cardWidth: CGFloat
     let navigate: (Destination) -> Void
     @Environment(\.offlineController) private var offline
+    @Environment(\.privacy) private var privacy
     @State private var series: [KomgaSeries] = []
     @State private var state: LoadState<Void> = .uninitialized
 
@@ -249,7 +261,15 @@ struct DownloadsView: View {
     }
 
     @ViewBuilder private func activeTransfers(_ offline: OfflineController) -> some View {
-        let active = offline.sortedDownloads.filter { $0.status == .queued || $0.status == .downloading || $0.status == .failed }
+        // A transfer row carries the book's title, so hidden books must be filtered here too — the shelf
+        // below is not the only thing on this screen that names content.
+        let hidden = privacy?.filter() ?? .disabled
+        let active = offline.sortedDownloads
+            .filter { $0.status == .queued || $0.status == .downloading || $0.status == .failed }
+            .filter { download in
+                guard let seriesId = download.seriesId else { return true }
+                return !hidden.hidden.series.contains(seriesId) && !hidden.hidden.books.contains(download.bookId)
+            }
         if !active.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("In progress").font(.title3.bold()).padding(.horizontal)

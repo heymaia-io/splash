@@ -63,7 +63,10 @@ public final class LibraryViewModel {
     private let authState: KomgaAuthenticationState
     private let settings: CommonSettingsRepository
     private let events: KomgaEventSource
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+    private let hiddenChanges: () -> AsyncStream<HiddenContent>
     private var eventTask: Task<Void, Never>?
+    private var hiddenTask: Task<Void, Never>?
     @ObservationIgnored private lazy var seriesReloader = ReloadScheduler(cooldown: .seconds(1)) { [weak self] in
         guard let self else { return }
         await self.loadSeriesPage(self.currentPage)
@@ -73,22 +76,34 @@ public final class LibraryViewModel {
     }
 
     init(api: any KomgaApi, libraryId: KomgaLibraryId?, authState: KomgaAuthenticationState,
-         settings: CommonSettingsRepository, events: KomgaEventSource) {
+         settings: CommonSettingsRepository, events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter,
+         hiddenChanges: @escaping () -> AsyncStream<HiddenContent>) {
         self.api = api
         self.libraryId = libraryId
         self.authState = authState
         self.settings = settings
         self.events = events
+        self.hiddenFilter = hiddenFilter
+        self.hiddenChanges = hiddenChanges
     }
 
     public var library: KomgaLibrary? { authState.libraries.first { $0.id == libraryId } }
-    /// Drives the library switcher below the title (the rows the sidebar used to hold).
-    public var libraries: [KomgaLibrary] { authState.libraries }
+    /// Drives the library switcher below the title (the rows the sidebar used to hold). Private libraries
+    /// must not appear here — the picker is the most visible listing of all.
+    public var libraries: [KomgaLibrary] { hiddenFilter().visible(authState.libraries) }
     public var cardWidth: CGFloat { CGFloat(settings.value.cardWidth) }
 
     public func initialize() async {
         guard seriesState.isUninitialized else { return }
         eventTask = listen(to: events) { [weak self] event in self?.handle(event) }
+        hiddenTask = Task { [weak self] in
+            var isFirst = true  // `values()` replays the current value
+            for await _ in self?.hiddenChanges() ?? .init(unfolding: { nil }) {
+                if isFirst { isFirst = false; continue }
+                await self?.reload()
+            }
+        }
         async let counts: Void = loadItemCounts()
         async let page: Void = loadSeriesPage(1)
         _ = await (counts, page)
@@ -122,7 +137,11 @@ public final class LibraryViewModel {
 
     func loadSeriesPage(_ page: Int) async {
         let libraryId = self.libraryId
-        let conditions: [SeriesCondition] = libraryId.map { [.libraryId(.isEqualTo($0))] } ?? []
+        let hidden = hiddenFilter()
+        // Hidden *libraries* are excluded by the server; hidden *series* cannot be (Komga has no series-id
+        // condition), so they are removed below.
+        let conditions: [SeriesCondition] = (libraryId.map { [.libraryId(.isEqualTo($0))] } ?? [])
+            + hidden.seriesConditions
         let term = searchTerm.trimmingCharacters(in: .whitespaces)
         if series.isEmpty { seriesState = .loading }
         do {
@@ -130,18 +149,37 @@ public final class LibraryViewModel {
                 search: KomgaSeriesSearch(condition: .allOf(conditions), fullTextSearch: term.isEmpty ? nil : term),
                 pageRequest: KomgaPageRequest(
                     pageIndex: page - 1, size: settings.value.seriesPageLoadSize, sort: sort.komgaSort))
-            series = result.content
+            series = hidden.visible(result.content)
             currentPage = result.number + 1
+            // `totalPages` stays the server's: shrinking it by a client-side count would make the tail of
+            // the list unreachable. A page may therefore render a few cards short of the page size —
+            // an accepted, documented consequence of Komga not being able to exclude a series by id.
             totalPages = max(result.totalPages, 1)
-            totalCount = result.totalElements
+            totalCount = result.totalElements - hiddenSeriesInScope(hidden)
             seriesState = .success(())
         } catch {
             seriesState = .error(error)
         }
     }
 
+    /// Individually hidden series the server still counted, so the displayed total stays honest.
+    private func hiddenSeriesInScope(_ hidden: HiddenContentFilter) -> Int {
+        let owners = Dictionary(
+            authState.libraries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return hidden.hiddenSeriesCount(inLibrary: libraryId) { seriesId in
+            // Only series currently on screen can be resolved without extra requests; anything else is
+            // counted as in-scope, which is the safe direction (never inflates the count).
+            series.first { $0.id == seriesId }?.libraryId ?? libraryId ?? owners.keys.first
+        }
+    }
+
+    /// Library ids to scope a request to: the selected one, or every *visible* library when browsing all.
+    private var scopedLibraryIds: [KomgaLibraryId]? {
+        libraryId.map { [$0] } ?? hiddenFilter().libraryAllowList(from: authState.libraries)
+    }
+
     private func loadItemCounts() async {
-        let ids = libraryId.map { [$0] }
+        let ids = scopedLibraryIds
         let sizeZero = KomgaPageRequest(size: 0)
         do {
             async let collections = api.collectionsApi.getAll(search: nil, libraryIds: ids, pageRequest: sizeZero)
@@ -156,13 +194,13 @@ public final class LibraryViewModel {
     }
 
     private func loadCollections() async {
-        let ids = libraryId.map { [$0] }
+        let ids = scopedLibraryIds
         collections = (try? await api.collectionsApi.getAll(
             search: nil, libraryIds: ids, pageRequest: KomgaPageRequest(unpaged: true)).content) ?? []
     }
 
     private func loadReadLists() async {
-        let ids = libraryId.map { [$0] }
+        let ids = scopedLibraryIds
         readLists = (try? await api.readListApi.getAll(
             search: nil, libraryIds: ids, pageRequest: KomgaPageRequest(unpaged: true)).content) ?? []
     }
@@ -190,7 +228,7 @@ struct LibraryScreen: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                libraryPicker
+                libraryPickerRow
                 if model.collectionsCount > 0 || model.readListsCount > 0 {
                     Picker("Section", selection: Binding(
                         get: { model.currentTab }, set: { tab in Task { await model.onTabChange(tab) } })
@@ -229,10 +267,32 @@ struct LibraryScreen: View {
             } label: {
                 Label("Sort", systemImage: "arrow.up.arrow.down")
             }
+            if let libraryId = model.libraryId {
+                Menu {
+                    HideMenuButton(target: .library(libraryId))
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+            }
         }
         .onChange(of: model.sort) { Task { await model.onFilterChange() } }
         .task { await model.initialize() }
         .refreshable { await model.reload() }
+    }
+
+    /// The chip row. The trailing space next to the chip carries the private area's reveal gesture — it
+    /// has no competing gesture recogniser and is invisible, unlike the `Menu` label itself, where a long
+    /// press would fight the menu's own press-and-hold presentation.
+    private var libraryPickerRow: some View {
+        HStack(spacing: 0) {
+            libraryPicker
+            Color.clear
+                .contentShape(.rect)
+                .frame(maxWidth: .infinity, minHeight: 32)
+                .accessibilityHidden(true)
+                .modifier(PrivacyRevealGesture())
+        }
+        .padding(.horizontal)
     }
 
     /// Library switcher, styled as the chip under the large title in the design references.
@@ -251,8 +311,6 @@ struct LibraryScreen: View {
         .menuStyle(.button)
         .buttonStyle(.bordered)
         .buttonBorderShape(.capsule)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal)
     }
 
     @ViewBuilder private func libraryOption(title: String, id: KomgaLibraryId?) -> some View {

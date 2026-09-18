@@ -198,10 +198,10 @@ public final class AppModule: AppSession {
     public static func makeDefaultWithStore() async throws -> AppModule {
         let store = PremiumEntitlementStore(provider: StoreKitPremiumProvider())
         #if DEBUG
-        // Debug builds only: `SPLASH_UNLOCK_OFFLINE=1` skips the entitlement check so downloads and offline
-        // mode can be exercised without going through StoreKit at all. Deliberately compiled out of release
+        // Debug builds only: skips the entitlement check so downloads, offline mode and the private area
+        // can be exercised without going through StoreKit at all. Deliberately compiled out of release
         // builds — a bypass that ships is a bypass anyone can find in the binary.
-        if ProcessInfo.processInfo.environment["SPLASH_UNLOCK_OFFLINE"] == "1" {
+        if ProcessInfo.processInfo.environment["SPLASH_UNLOCK_PREMIUM"] == "1" {
             let module = try await makeDefault(accessPolicy: AlwaysUnlockedPolicy())
             module.entitlements = store
             await store.start()
@@ -361,9 +361,12 @@ extension AppModule: OfflineModeSwitching {
     /// Reads the offline store directly (not `api`), so the shelf is identical online and offline.
     public func downloadedSeries() async throws -> [KomgaSeries] {
         await alignOfflineUser()
-        return try await offline.api.seriesApi
+        let series = try await offline.api.seriesApi
             .getSeriesList(search: KomgaSeriesSearch(), pageRequest: KomgaPageRequest(unpaged: true))
             .content
+        // The one chokepoint for both the Downloads tab and the offline fallback shelf. A downloaded book
+        // that is later hidden must not reappear here — that would be the most visible leak of all.
+        return (privacy?.filter() ?? .disabled).visible(series)
     }
 
     public func offlineUsers() async -> [OfflineUserChoice] {

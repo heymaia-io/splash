@@ -23,8 +23,12 @@ public final class CollectionViewModel {
         await self.load(page: self.currentPage)
     }
 
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
     init(collectionId: KomgaCollectionId, api: any KomgaApi, settings: CommonSettingsRepository,
-         events: KomgaEventSource) {
+         events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
+        self.hiddenFilter = hiddenFilter
         self.collectionId = collectionId
         self.api = api
         self.settings = settings
@@ -56,7 +60,8 @@ public final class CollectionViewModel {
                 pageRequest: KomgaPageRequest(pageIndex: page - 1, size: settings.value.seriesPageLoadSize))
             self.collection = try await collection
             let result = try await series
-            self.series = result.content
+            // Collection membership takes no search condition, so this filter is the only guard.
+            self.series = hiddenFilter().visible(result.content)
             currentPage = result.number + 1
             totalPages = max(result.totalPages, 1)
             state = .success(())
@@ -113,8 +118,12 @@ public final class ReadListViewModel {
         await self.load(page: self.currentPage)
     }
 
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
     init(readListId: KomgaReadListId, api: any KomgaApi, settings: CommonSettingsRepository,
-         events: KomgaEventSource) {
+         events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
+        self.hiddenFilter = hiddenFilter
         self.readListId = readListId
         self.api = api
         self.settings = settings
@@ -146,7 +155,7 @@ public final class ReadListViewModel {
                 pageRequest: KomgaPageRequest(pageIndex: page - 1, size: settings.value.bookPageLoadSize))
             self.readList = try await readList
             let result = try await books
-            self.books = result.content
+            self.books = hiddenFilter().visible(result.content)
             currentPage = result.number + 1
             totalPages = max(result.totalPages, 1)
             state = .success(())

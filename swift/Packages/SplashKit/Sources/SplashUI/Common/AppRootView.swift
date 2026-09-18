@@ -42,6 +42,12 @@ public struct AppRootView: View {
 
     private let initialBook: SplashBook?
 
+    /// Covers the window while the private area is open and the app is leaving the foreground.
+    private var privacyBlurActive: Bool {
+        guard let privacy = session.privacy, privacy.isUnlocked, !privacy.isAuthenticating else { return false }
+        return scenePhase != .active
+    }
+
     public init(session: any AppSession, initialBook: SplashBook? = nil) {
         self.session = session
         self.initialBook = initialBook
@@ -74,6 +80,10 @@ public struct AppRootView: View {
         }
         .environment(\.thumbnailLoader, session.viewModelFactory.thumbnails)
         .environment(\.offlineController, session.offlineController)
+        .environment(\.privacy, session.privacy)
+        // The app-switcher snapshot is taken while `.inactive`, so private content has to be covered
+        // there — filtering listings is pointless if the thumbnail leaks them.
+        .overlay { if privacyBlurActive { PrivacyBlur() } }
         .preferredColorScheme(session.settings.value.appTheme.colorScheme)
         .background(session.settings.value.appTheme == .darker ? Color.black.ignoresSafeArea() : nil)
         .sheet(isPresented: Binding(
@@ -92,6 +102,7 @@ public struct AppRootView: View {
         // [NUEVO] iOS lifecycle: pause SSE in background, resume when active (plan Phase 7).
         .onChange(of: scenePhase) { _, phase in
             session.setLiveEventsActive(phase == .active && session.authState.state == .loaded)
+            session.privacy?.scenePhaseChanged(phase)
         }
     }
 
@@ -108,6 +119,7 @@ public struct AppRootView: View {
                 DestinationView(
                     destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
                     api: model.navigator.root == .downloads ? session.offlineApi : nil,
+                    hiddenMode: model.navigator.root.isPrivate ? .onlyHidden : .excludeHidden,
                     onRead: { open($0) })
             }
         }
@@ -129,6 +141,9 @@ public struct AppRootView: View {
     /// EPUB books go to the Readium reader (plan Phase 15); everything else (CBZ, images, PDF) to the image
     /// reader. EPUBs that Komga marks as DiViNa-compatible (fixed-layout comics) also use the image reader.
     private func open(_ book: SplashBook) {
+        // Deep links and `initialBook` skip every listing, so the guard has to be repeated here.
+        let privacy = session.privacy
+        if let privacy, !privacy.isUnlocked, privacy.filter().isHidden(book: book) { return }
         guard book.media.mediaProfile == .epub, !book.media.epubDivinaCompatible else {
             Task { readerApi = await session.readingApi(for: book); readingBook = book }
             return

@@ -41,8 +41,12 @@ public final class SeriesViewModel {
         await self.loadBooks(page: self.currentPage)
     }
 
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
     init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState,
-         settings: CommonSettingsRepository, events: KomgaEventSource) {
+         settings: CommonSettingsRepository, events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
+        self.hiddenFilter = hiddenFilter
         self.seriesId = seriesId
         self.api = api
         self.authState = authState
@@ -107,12 +111,16 @@ public final class SeriesViewModel {
     }
 
     func loadBooks(page: Int) async {
+        let hidden = hiddenFilter()
         do {
+            // Book exclusion *is* exact server-side (`BookCondition` has both library and series ids), so
+            // pagination stays correct here — unlike series lists.
             let result = try await api.bookApi.getBookList(
-                search: KomgaBookSearch(condition: .allOfBooks(.seriesId(.isEqualTo(seriesId)))),
+                search: KomgaBookSearch(
+                    condition: .allOf([.seriesId(.isEqualTo(seriesId))] + hidden.bookConditions)),
                 pageRequest: KomgaPageRequest(
                     pageIndex: page - 1, size: settings.value.bookPageLoadSize, sort: sort.komgaSort))
-            books = result.content
+            books = hidden.visible(result.content)
             currentPage = result.number + 1
             totalPages = max(result.totalPages, 1)
         } catch {
@@ -212,6 +220,8 @@ struct SeriesScreen: View {
                 Divider()
                 Button("Mark as read") { Task { await model.markAsRead() } }
                 Button("Mark as unread") { Task { await model.markAsUnread() } }
+                Divider()
+                HideMenuButton(target: .series(model.seriesId))
                 if let offline, !offline.isOfflineMode {
                     Divider()
                     Button { offline.download(series: model.seriesId) } label: {
@@ -235,6 +245,7 @@ struct SeriesScreen: View {
 
     @ViewBuilder private func bookMenu(_ book: SplashBook) -> some View {
         Button { onRead(book) } label: { Label("Read", systemImage: "book") }
+        HideMenuButton(target: .book(book.id, isDownloaded: book.downloaded))
         if let offline, !offline.isOfflineMode {
             if book.downloaded {
                 Button("Delete download", role: .destructive) { offline.delete(book: book.id) }

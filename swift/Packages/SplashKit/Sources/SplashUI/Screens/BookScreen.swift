@@ -21,7 +21,11 @@ public final class BookViewModel {
         await self?.loadBook()
     }
 
-    init(bookId: KomgaBookId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource) {
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
+    init(bookId: KomgaBookId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
+        self.hiddenFilter = hiddenFilter
         self.bookId = bookId
         self.api = api
         self.authState = authState
@@ -167,6 +171,10 @@ struct BookDetails: View {
             Menu {
                 Button("Mark as read") { Task { await model.markAsRead() } }
                 Button("Mark as unread") { Task { await model.markAsUnread() } }
+                if let book = model.book {
+                    Divider()
+                    HideMenuButton(target: .book(book.id, isDownloaded: book.downloaded))
+                }
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
             }
@@ -202,7 +210,11 @@ public final class OneshotViewModel {
     private let authState: KomgaAuthenticationState
     private let events: KomgaEventSource
 
-    init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource) {
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
+    init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
+        self.hiddenFilter = hiddenFilter
         self.seriesId = seriesId
         self.api = api
         self.authState = authState
