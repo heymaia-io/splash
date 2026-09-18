@@ -452,9 +452,29 @@ struct ServerSettingsView: View {
 // MARK: - About
 
 struct AboutView: View {
+    /// Taps on the version row. Seven reveals the private-libraries help page — the Android
+    /// developer-options idiom, chosen because it is not something anyone reaches by accident.
+    @State private var versionTaps = 0
+    private static let tapsToReveal = 7
+
+    private var didReveal: Bool { versionTaps >= Self.tapsToReveal }
+
     var body: some View {
         Form {
             LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
+                .contentShape(.rect)
+                .onTapGesture {
+                    guard !didReveal else { return }
+                    versionTaps += 1
+                    #if os(iOS)
+                    if didReveal { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                    #endif
+                }
+            if didReveal {
+                NavigationLink { PrivacyHelpView() } label: {
+                    Label("Private libraries", systemImage: "lock.doc")
+                }
+            }
             Section {
                 Text("A client for Komga servers. Reading online is free and unlimited; offline reading is a one-time purchase.")
                 Text("Privacy: the app collects no data. Everything stays on your device and your Komga server.")
