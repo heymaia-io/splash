@@ -11,6 +11,11 @@ struct DestinationView: View {
     /// Non-nil inside the Downloads tab: every screen there reads from the offline store, so browsing what
     /// you have downloaded never touches the network. `nil` everywhere else = use the active API.
     let api: (any KomgaApi)?
+    /// Always the offline store, whatever tab this is. A series screen uses it to answer "Downloaded"
+    /// exactly, rather than trimming a page of remote results.
+    var offlineApi: (any KomgaApi)?
+    /// Which books a series opens on. The Downloads tab opens on what you have downloaded.
+    var downloadFilter: BookDownloadFilter = .all
     let onRead: (SplashBook) -> Void
 
     var body: some View {
@@ -22,8 +27,10 @@ struct DestinationView: View {
                           selectLibrary: { navigator.replaceAll(.library($0)) })
                 .id(id)
         case .series(let id):
-            SeriesScreen(model: factory.seriesViewModel(seriesId: id, api: api), navigate: navigate,
-                         onRead: onRead)
+            SeriesScreen(
+                model: factory.seriesViewModel(
+                    seriesId: id, api: api, offlineApi: offlineApi, downloadFilter: downloadFilter),
+                navigate: navigate, onRead: onRead)
         case .oneshot(let id):
             OneshotScreen(model: factory.oneshotViewModel(seriesId: id, api: api), navigate: navigate,
                           onRead: onRead)

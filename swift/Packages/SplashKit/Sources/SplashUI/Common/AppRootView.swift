@@ -115,12 +115,13 @@ public struct AppRootView: View {
             default:
                 DestinationView(
                     destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
-                    // Only the Downloads shelf itself is pinned to the offline store. A series or book
-                    // pushed from it uses the active API, so tapping a cover shows the *whole* series and
-                    // not just the downloaded books. In offline mode the active API is the offline one, so
-                    // that degrades to the downloaded books rather than failing; if the server is simply
-                    // unreachable the screen shows its usual connection error with a downloads fallback.
+                    // Only the Downloads shelf itself is pinned to the offline store; a series pushed
+                    // from it uses the active API so the All / Not downloaded filters have something
+                    // to show. It still *opens* on Downloaded, so tapping a cover there shows what you
+                    // have, answered from the offline store and available with no network.
                     api: destination == .downloads ? session.offlineApi : nil,
+                    offlineApi: session.offlineApi,
+                    downloadFilter: model.navigator.root == .downloads ? .downloaded : .all,
                     onRead: { open($0) })
             }
         }

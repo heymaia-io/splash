@@ -70,9 +70,13 @@ public final class ViewModelFactory {
             hiddenFilter: hiddenFilter, hiddenChanges: hiddenChanges)
     }
 
-    func seriesViewModel(seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil) -> SeriesViewModel {
+    func seriesViewModel(
+        seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil, offlineApi: (any KomgaApi)? = nil,
+        downloadFilter: BookDownloadFilter = .all
+    ) -> SeriesViewModel {
         SeriesViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, settings: settings,
-                        events: events, hiddenFilter: hiddenFilter, hiddenChanges: hiddenChanges)
+                        events: events, offlineApi: offlineApi, downloadFilter: downloadFilter,
+                        hiddenFilter: hiddenFilter, hiddenChanges: hiddenChanges)
     }
 
     func bookViewModel(bookId: KomgaBookId, api: (any KomgaApi)? = nil) -> BookViewModel {

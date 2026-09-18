@@ -10,6 +10,39 @@ public enum BooksSortOption: String, CaseIterable, Identifiable, Sendable {
     var komgaSort: KomgaSort { KomgaBooksSort.byNumber(self == .numberAsc ? .asc : .desc) }
 }
 
+/// [NUEVO] Which books of a series to show, by download state.
+///
+/// A small glyph on the cover was the only signal that a book was downloaded, which is easy to miss when
+/// most of a long series is not. This makes it a first-class filter, and lets the Downloads tab open a
+/// series showing just what you have without sending you to a different tab.
+public enum BookDownloadFilter: String, CaseIterable, Identifiable, Sendable {
+    case all, downloaded, notDownloaded
+    public var id: String { rawValue }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .all: "All"
+        case .downloaded: "Downloaded"
+        case .notDownloaded: "Not downloaded"
+        }
+    }
+
+    /// True when the offline store can answer this exactly, so the screen queries it instead of trimming a
+    /// page of remote results — no network, and not subject to pagination.
+    var isAnsweredByOfflineStore: Bool { self == .downloaded }
+
+    /// The client-side fallback. Komga knows nothing about downloads, so this can never be a query
+    /// condition; it trims a page after the fact, exactly like the privacy filter, which means a page can
+    /// render fewer cards than the page size.
+    func apply(to books: [SplashBook]) -> [SplashBook] {
+        switch self {
+        case .all: books
+        case .downloaded: books.filter(\.downloaded)
+        case .notDownloaded: books.filter { !$0.downloaded }
+        }
+    }
+}
+
 /// Port of `SeriesViewModel.kt` + `SeriesBooksState.kt` + `SeriesCollectionsState.kt`.
 @MainActor
 @Observable
@@ -25,10 +58,14 @@ public final class SeriesViewModel {
     public private(set) var currentPage = 1
     public private(set) var totalPages = 1
     public var sort: BooksSortOption = .numberAsc
+    public var downloadFilter: BookDownloadFilter
     public private(set) var collections: [KomgaCollection] = []
     public private(set) var actionError: String?
 
     private let api: any KomgaApi
+    /// Reads the offline store directly. `.downloaded` is answered from here rather than by filtering a page
+    /// of remote results, so it is exact, needs no network, and is not subject to pagination.
+    private let offlineApi: (any KomgaApi)?
     private let authState: KomgaAuthenticationState
     private let settings: CommonSettingsRepository
     private let events: KomgaEventSource
@@ -48,10 +85,14 @@ public final class SeriesViewModel {
 
     init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState,
          settings: CommonSettingsRepository, events: KomgaEventSource,
+         offlineApi: (any KomgaApi)? = nil,
+         downloadFilter: BookDownloadFilter = .all,
          hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled },
          hiddenChanges: @escaping @MainActor () -> AsyncStream<PrivacyState> = { noHiddenChanges }) {
         self.seriesId = seriesId
         self.api = api
+        self.offlineApi = offlineApi
+        self.downloadFilter = downloadFilter
         self.authState = authState
         self.settings = settings
         self.events = events
@@ -85,6 +126,7 @@ public final class SeriesViewModel {
 
     public func onPageChange(_ page: Int) async { await loadBooks(page: page) }
     public func onSortChange() async { await loadBooks(page: 1) }
+    public func onDownloadFilterChange() async { await loadBooks(page: 1) }
 
     // MARK: SeriesMenuActions
 
@@ -137,11 +179,28 @@ public final class SeriesViewModel {
             // `BookCondition` can exclude both libraries and whole series, so the only thing left for the
             // client-side guard here is an individually hidden *book* — pagination stays exact otherwise.
             let conditions: [BookCondition] = [.seriesId(.isEqualTo(seriesId))] + hidden.bookConditions
+            let search = KomgaBookSearch(condition: .allOf(conditions))
+
+            let filter = downloadFilter
+            if filter.isAnsweredByOfflineStore, let offlineApi {
+                // The offline store holds exactly the downloaded books. Unpaged because the count is bounded
+                // by what the user chose to download, and it needs no network.
+                let result = try await offlineApi.bookApi.getBookList(
+                    search: search, pageRequest: KomgaPageRequest(sort: sort.komgaSort, unpaged: true))
+                books = hidden.visible(result.content)
+                currentPage = 1
+                totalPages = 1
+                return
+            }
+
             let result = try await api.bookApi.getBookList(
-                search: KomgaBookSearch(condition: .allOf(conditions)),
+                search: search,
                 pageRequest: KomgaPageRequest(
                     pageIndex: page - 1, size: settings.value.bookPageLoadSize, sort: sort.komgaSort))
-            books = hidden.visible(result.content)
+            // `apply` also covers `.downloaded` when no offline store was supplied (previews, tests), so the
+            // filter is never silently ignored. The server's `totalPages` is kept either way, so trimming a
+            // page never makes the tail unreachable.
+            books = filter.apply(to: hidden.visible(result.content))
             currentPage = result.number + 1
             totalPages = max(result.totalPages, 1)
         } catch {
@@ -212,6 +271,11 @@ struct SeriesScreen: View {
                 }
                 switch model.currentTab {
                 case .books:
+                    Picker("Show", selection: $model.downloadFilter) {
+                        ForEach(BookDownloadFilter.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
                     CardGrid(items: model.books, cardWidth: model.cardWidth) { book in
                         Button { navigate(.book(book.id)) } label: { BookCard(book: book) }
                             .buttonStyle(.plain)
@@ -256,6 +320,7 @@ struct SeriesScreen: View {
             }
         }
         .onChange(of: model.sort) { Task { await model.onSortChange() } }
+        .onChange(of: model.downloadFilter) { Task { await model.onDownloadFilterChange() } }
     }
 
     /// First unfinished book on the current page (Kotlin's "read" shortcut picks the in-progress/unread one).
