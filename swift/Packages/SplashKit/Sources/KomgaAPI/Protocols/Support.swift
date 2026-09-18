@@ -25,6 +25,32 @@ public enum KomgaAPIError: Error, Sendable, Equatable {
     }
 }
 
+/// Without this, `error.localizedDescription` renders as "KomgaAPI.KomgaAPIError error 0" — Foundation's
+/// fallback for a plain `Error` enum, naming the case *index*. These strings reach the user directly in
+/// screen error views and action banners, so each case says what actually happened; an HTTP failure prefers
+/// the server's own `message`, which is the only part that can explain a particular 4xx.
+extension KomgaAPIError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .httpStatus(let code, _):
+            if let message = errorResponse?.message, !message.isEmpty { return message }
+            switch code {
+            case 401: return String(localized: "Your session has expired. Please sign in again.")
+            case 403: return String(localized: "Your account is not allowed to do that.")
+            case 404: return String(localized: "That content is no longer on the server.")
+            case 500...599: return String(localized: "The server had a problem (error \(code)). Please try again.")
+            default: return String(localized: "The server rejected the request (error \(code)).")
+            }
+        case .invalidResponse:
+            return String(localized: "The server sent a response Splash could not read.")
+        case .decoding(let detail):
+            return String(localized: "The server sent unexpected data. (\(detail))")
+        case .unsupported(let detail):
+            return String(localized: "That is not available right now. (\(detail))")
+        }
+    }
+}
+
 extension Error {
     public var isKomgaNotFound: Bool { (self as? KomgaAPIError)?.isNotFound ?? false }
     public var isKomgaUnauthorized: Bool { (self as? KomgaAPIError)?.isUnauthorized ?? false }

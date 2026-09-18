@@ -3,8 +3,9 @@ import SwiftUI
 
 /// The "Hide"/"Unhide" item for an ellipsis or context menu.
 ///
-/// Renders nothing unless the private area is unlocked — the feature must leave no trace while locked, and
-/// there is nowhere to hide something *from* while everything is visible anyway.
+/// Shown whenever the premium unlock has been purchased, **locked or not**, so hiding something never costs
+/// a Face ID prompt first. While locked it always reads "Hide": a hidden item is not on screen to unhide,
+/// and hiding takes effect immediately — the item disappears from the list as soon as the menu closes.
 struct HideMenuButton: View {
     enum Target {
         case library(KomgaLibraryId)
@@ -20,7 +21,7 @@ struct HideMenuButton: View {
     @Environment(\.privacy) private var privacy
 
     var body: some View {
-        if let privacy, privacy.isUnlocked {
+        if let privacy, privacy.canHide {
             Divider()
             Button {
                 Task { await setHidden(!isHidden(privacy), on: privacy) }

@@ -131,6 +131,37 @@ final class FakeAccessPolicy: PremiumAccessPolicy {
         #expect(ejected == 1)
     }
 
+    // MARK: - Hiding is available while locked
+
+    /// Hiding is the common action, so it must not cost a Face ID prompt first. It is gated on the purchase
+    /// only — never on `isUnlocked`.
+    @Test func canHideWhileLockedWithTheEntitlement() async {
+        let (controller, auth, _, _) = make(entitled: true)
+        #expect(!controller.isUnlocked)
+        #expect(controller.canHide)
+        #expect(auth.authenticateCalls == 0)  // offering Hide must not prompt
+
+        await controller.setHidden(seriesId: KomgaSeriesId("s1"), true)
+        #expect(controller.isHidden(seriesId: KomgaSeriesId("s1")))
+        // Still locked, so it takes effect immediately.
+        #expect(controller.filter().hidden.series == [KomgaSeriesId("s1")])
+    }
+
+    /// Without the purchase the action never appears, locked or not.
+    @Test func cannotHideWithoutTheEntitlement() async {
+        let (controller, _, _, _) = make(entitled: false)
+        #expect(!controller.canHide)
+        await controller.requestReveal()
+        #expect(!controller.canHide)
+    }
+
+    @Test func canHideStaysTrueOnceUnlocked() async {
+        let (controller, _, _, _) = make(entitled: true)
+        await controller.requestReveal()
+        #expect(controller.isUnlocked)
+        #expect(controller.canHide)
+    }
+
     // MARK: - §2.1 regression: one source of truth
 
     /// `filter()` must return `.disabled` while unlocked. When this regressed, unlocking revealed nothing

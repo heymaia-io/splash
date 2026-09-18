@@ -79,17 +79,25 @@ public final class OfflineController {
     }
 
     /// Series → library, refreshed alongside the downloads so `visible(_:)` below stays synchronous and
-    /// usable straight from a SwiftUI body.
+    /// usable straight from a SwiftUI body. Empty unless a hidden library makes it necessary.
     public private(set) var seriesLibraries: [KomgaSeriesId: KomgaLibraryId] = [:]
+
+    /// Set by the composition root; nil means privacy is not configured.
+    public var hiddenLibrariesExist: (@MainActor () -> Bool)?
+
+    private var needsLibraryResolution: Bool { hiddenLibrariesExist?() ?? false }
 
     public func refresh() async {
         do {
             let all = try await service.downloads()
             downloads = Dictionary(uniqueKeysWithValues: all.map { ($0.bookId, $0) })
             downloadedBytes = try await service.downloadedBytes()
-            seriesLibraries = await modeSwitch.seriesLibraries()
+            // Only needed to recognise a download whose *library* is hidden; a book or series mark is
+            // decided from the record itself. Skipping it keeps `refresh()` — which runs after every
+            // download action — to a single round-trip for anyone who hides nothing, or hides no library.
+            seriesLibraries = needsLibraryResolution ? await modeSwitch.seriesLibraries() : [:]
         } catch {
-            lastError = error.localizedDescription
+            if !error.isCancellation { lastError = error.localizedDescription }
         }
     }
 
@@ -163,7 +171,7 @@ public final class OfflineController {
                 try await action(service)
                 await refresh()
             } catch {
-                lastError = error.localizedDescription
+                if !error.isCancellation { lastError = error.localizedDescription }
             }
         }
     }

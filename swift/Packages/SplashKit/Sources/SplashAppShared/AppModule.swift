@@ -167,6 +167,10 @@ public final class AppModule: AppSession {
         // Same access policy as downloads: one purchase gates both.
         module.privacy = PrivacyController(
             state: privacyState, settings: settings, access: module.accessPolicy)
+        // Download rows need a series → library map only when a library is actually hidden.
+        controller.hiddenLibrariesExist = { [unowned module] in
+            !(module.privacy?.hidden.libraries.isEmpty ?? true)
+        }
         await module.offline.start()
         controller.start()
         return module
@@ -231,6 +235,9 @@ public final class AppModule: AppSession {
         // Privacy is gated by the same policy, so it must be rebuilt too — otherwise it keeps asking the
         // policy that was swapped out. Rebuilding drops `isUnlocked`, which fails safe (re-locks).
         privacy = PrivacyController(state: privacyState, settings: settings, access: policy)
+        controller.hiddenLibrariesExist = { [unowned self] in
+            !(self.privacy?.hidden.libraries.isEmpty ?? true)
+        }
     }
 
     // MARK: - Lifecycle hooks

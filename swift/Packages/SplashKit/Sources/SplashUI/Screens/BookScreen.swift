@@ -66,7 +66,7 @@ public final class BookViewModel {
             try await action(api)
             await loadBook()
         } catch {
-            actionError = error.localizedDescription
+            if !error.isCancellation { actionError = error.localizedDescription }
         }
     }
 
@@ -85,7 +85,7 @@ public final class BookViewModel {
             book = loaded
             state = .success(())
         } catch {
-            state = .error(error)
+            if !error.isCancellation { state = .error(error) }
         }
     }
 }
@@ -247,7 +247,7 @@ public final class OneshotViewModel {
                 bookId: book.id, api: api, authState: authState, events: events, hiddenFilter: hiddenFilter)
             state = .success(())
         } catch {
-            state = .error(error)
+            if !error.isCancellation { state = .error(error) }
         }
     }
 }

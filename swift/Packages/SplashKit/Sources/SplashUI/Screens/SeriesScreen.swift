@@ -43,16 +43,20 @@ public final class SeriesViewModel {
 
     /// A provider, not a snapshot: re-read per fetch so unlocking takes effect without rebuilding the model.
     private let hiddenFilter: @MainActor () -> HiddenContentFilter
+    private let hiddenChanges: @MainActor () -> AsyncStream<PrivacyState>
+    private var hiddenTask: Task<Void, Never>?
 
     init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState,
          settings: CommonSettingsRepository, events: KomgaEventSource,
-         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled },
+         hiddenChanges: @escaping @MainActor () -> AsyncStream<PrivacyState> = { noHiddenChanges }) {
         self.seriesId = seriesId
         self.api = api
         self.authState = authState
         self.settings = settings
         self.events = events
         self.hiddenFilter = hiddenFilter
+        self.hiddenChanges = hiddenChanges
     }
 
     public var library: KomgaLibrary? { series.flatMap { s in authState.libraries.first { $0.id == s.libraryId } } }
@@ -61,6 +65,12 @@ public final class SeriesViewModel {
     public func initialize() async {
         guard state.isUninitialized else { return }
         eventTask = listen(to: events) { [weak self] event in self?.handle(event) }
+        // Hiding a book from its context menu must drop it from the list straight away — the Hide action is
+        // available while locked, so this is the ordinary path, not an edge case.
+        hiddenTask = listenHidden(to: hiddenChanges) { [weak self] in
+            guard let self else { return }
+            await self.loadBooks(page: self.currentPage)
+        }
         await loadSeries()
         async let books: Void = loadBooks(page: 1)
         async let collections: Void = loadCollections()
@@ -92,7 +102,7 @@ public final class SeriesViewModel {
             try await action(api)
             await reload()
         } catch {
-            actionError = error.localizedDescription
+            if !error.isCancellation { actionError = error.localizedDescription }
         }
     }
 
@@ -107,7 +117,7 @@ public final class SeriesViewModel {
             series = loaded
             state = .success(())
         } catch {
-            state = .error(error)
+            if !error.isCancellation { state = .error(error) }
         }
     }
 
@@ -125,7 +135,7 @@ public final class SeriesViewModel {
             currentPage = result.number + 1
             totalPages = max(result.totalPages, 1)
         } catch {
-            actionError = error.localizedDescription
+            if !error.isCancellation { actionError = error.localizedDescription }
         }
     }
 

@@ -96,7 +96,7 @@ public final class ReaderViewModel {
             readerType = Self.readerType(for: loadedSeries.metadata.readingDirection, fallback: settings.value.readerType)
             state = .success(())
         } catch {
-            state = .error(error)
+            if !error.isCancellation { state = .error(error) }
         }
     }
 

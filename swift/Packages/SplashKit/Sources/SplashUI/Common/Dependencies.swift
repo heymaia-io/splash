@@ -72,7 +72,7 @@ public final class ViewModelFactory {
 
     func seriesViewModel(seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil) -> SeriesViewModel {
         SeriesViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, settings: settings,
-                        events: events, hiddenFilter: hiddenFilter)
+                        events: events, hiddenFilter: hiddenFilter, hiddenChanges: hiddenChanges)
     }
 
     func bookViewModel(bookId: KomgaBookId, api: (any KomgaApi)? = nil) -> BookViewModel {

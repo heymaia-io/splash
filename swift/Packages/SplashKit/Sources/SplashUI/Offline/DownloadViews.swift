@@ -275,7 +275,7 @@ struct DownloadsView: View {
             series = try await offline.downloadedSeries()
             state = .success(())
         } catch {
-            state = .error(error)
+            if !error.isCancellation { state = .error(error) }
         }
     }
 }

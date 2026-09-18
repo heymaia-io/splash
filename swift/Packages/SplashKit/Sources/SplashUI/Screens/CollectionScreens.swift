@@ -68,7 +68,7 @@ public final class CollectionViewModel {
             totalPages = max(result.totalPages, 1)
             state = .success(())
         } catch {
-            state = .error(error)
+            if !error.isCancellation { state = .error(error) }
         }
     }
 }
@@ -164,7 +164,7 @@ public final class ReadListViewModel {
             totalPages = max(result.totalPages, 1)
             state = .success(())
         } catch {
-            state = .error(error)
+            if !error.isCancellation { state = .error(error) }
         }
     }
 }

@@ -60,6 +60,22 @@ public final class ReloadScheduler {
     }
 }
 
+/// True when this error is a task cancellation rather than a real failure.
+///
+/// Cancellation means "nobody is waiting for this any more" — a pull-to-refresh superseding an in-flight
+/// load, a screen being torn down, a debounced search restarting. Showing it as an error puts
+/// "CancellationError error 1" in front of the user for something that is working as intended. It matters
+/// more since the shell is keyed on the private-area unlock state: locking or revealing rebuilds the
+/// screens, which cancels whatever they were loading.
+///
+/// `URLError.cancelled` is checked too, because a cancelled `URLSession` request surfaces as that rather
+/// than as `CancellationError`.
+extension Error {
+    public var isCancellation: Bool {
+        self is CancellationError || (self as? URLError)?.code == .cancelled
+    }
+}
+
 /// Subscribes a screen model to the shared event stream for as long as the returned task lives.
 @MainActor
 func listen(

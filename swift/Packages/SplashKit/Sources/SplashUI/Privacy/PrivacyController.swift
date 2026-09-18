@@ -54,6 +54,16 @@ public final class PrivacyController {
     /// items are hidden.
     public var hasHiddenContent: Bool { !hidden.isEmpty }
 
+    /// Whether the Hide action may be offered at all — i.e. whether the premium unlock has been purchased.
+    ///
+    /// Deliberately **not** gated on `isUnlocked`: hiding something is the common action and requiring a
+    /// Face ID prompt first made it tedious. The trade-off is that the menu item's presence reveals that the
+    /// feature exists to anyone who opens the menu. It reveals nothing about *what* is hidden — seeing
+    /// hidden content still requires the gesture and device authentication.
+    ///
+    /// nil access means purchases are not configured (tests/previews), where everything is unlocked.
+    public var canHide: Bool { access?.isUnlocked ?? true }
+
     /// **The** filter. `.disabled` while unlocked — unlocking is "stop filtering", not "show somewhere else".
     public func filter() -> HiddenContentFilter {
         isUnlocked ? .disabled : HiddenContentFilter(hidden: hidden)

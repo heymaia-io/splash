@@ -85,7 +85,7 @@ public final class HomeViewModel {
             sections = loaded.sorted { $0.filter.order < $1.filter.order }
             state = .success(())
         } catch {
-            state = .error(error)
+            if !error.isCancellation { state = .error(error) }
         }
     }
 
