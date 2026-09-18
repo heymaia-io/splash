@@ -11,6 +11,13 @@
       "input_tokens": 92000,
       "output_tokens": 8103,
       "files": 184
+    },
+    {
+      "date": "2026-09-18T04:59:38.824876+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 38,
+      "note": "incremental, code-only (no LLM)"
     }
   ],
   "total_input_tokens": 92000,

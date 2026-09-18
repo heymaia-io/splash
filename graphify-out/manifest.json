@@ -165,9 +165,9 @@
     "semantic_hash": "1657c351e003fcc7ae1eed17c0877de8"
   },
   "swift/Packages/SplashKit/Sources/SplashAppShared/AppModule.swift": {
-    "mtime": 1789703411.741382,
-    "ast_hash": "d42792e8511ab7574c955ec710374bcb",
-    "semantic_hash": "d42792e8511ab7574c955ec710374bcb"
+    "mtime": 1789706749.120746,
+    "ast_hash": "78d5e21caa8cca7bbce376272c73f61d",
+    "semantic_hash": "78d5e21caa8cca7bbce376272c73f61d"
   },
   "swift/Packages/SplashKit/Sources/SplashCore/Auth/ApiKeyStore.swift": {
     "mtime": 1789633959.7489457,
@@ -215,9 +215,9 @@
     "semantic_hash": "69952b220a33fe3eaefb083a88504f3e"
   },
   "swift/Packages/SplashKit/Sources/SplashDB/Database/AppMigrations.swift": {
-    "mtime": 1789703411.741595,
-    "ast_hash": "f9987387ca0601fcdb8def67005e868f",
-    "semantic_hash": "f9987387ca0601fcdb8def67005e868f"
+    "mtime": 1789705900.2455595,
+    "ast_hash": "174f1f2348904195bdda280fac7c529b",
+    "semantic_hash": "174f1f2348904195bdda280fac7c529b"
   },
   "swift/Packages/SplashKit/Sources/SplashDB/Database/OfflineMigrations.swift": {
     "mtime": 1789651371.809529,
@@ -295,9 +295,9 @@
     "semantic_hash": "21d281619503a0ad57ac63826dcca21f"
   },
   "swift/Packages/SplashKit/Sources/SplashDB/Settings/GRDBSettingsStores.swift": {
-    "mtime": 1789703411.7418714,
-    "ast_hash": "85f7fe8d7a8655875d91eb536ad5cb81",
-    "semantic_hash": "85f7fe8d7a8655875d91eb536ad5cb81"
+    "mtime": 1789705900.2453632,
+    "ast_hash": "3834c0e4bbcadc1a1cf2a28262966981",
+    "semantic_hash": "3834c0e4bbcadc1a1cf2a28262966981"
   },
   "swift/Packages/SplashKit/Sources/SplashImage/PageImageLoader.swift": {
     "mtime": 1789649120.9199154,
@@ -495,24 +495,24 @@
     "semantic_hash": "b7f556a114175c7690525ab2632d24ad"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Common/AppRootView.swift": {
-    "mtime": 1789703411.742386,
-    "ast_hash": "50ac716c631d80ade8b8dd3cf8da3e15",
-    "semantic_hash": "50ac716c631d80ade8b8dd3cf8da3e15"
+    "mtime": 1789707057.8187125,
+    "ast_hash": "c77d50c50cbc07a84ccb21eb90550195",
+    "semantic_hash": "c77d50c50cbc07a84ccb21eb90550195"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Common/Cards.swift": {
-    "mtime": 1789703523.8221846,
-    "ast_hash": "1745193e48aa621e32f5b36fac40ffc0",
-    "semantic_hash": "1745193e48aa621e32f5b36fac40ffc0"
+    "mtime": 1789706966.580243,
+    "ast_hash": "b635d9532faa0a6bf241a2958dd8e415",
+    "semantic_hash": "b635d9532faa0a6bf241a2958dd8e415"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Common/Dependencies.swift": {
-    "mtime": 1789703411.7427435,
-    "ast_hash": "3d4a17ca6a64094756d44e1e2cd08a9c",
-    "semantic_hash": "3d4a17ca6a64094756d44e1e2cd08a9c"
+    "mtime": 1789706640.5692847,
+    "ast_hash": "e0e931d841865b5524af923bbdf87915",
+    "semantic_hash": "e0e931d841865b5524af923bbdf87915"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Common/LoadState.swift": {
-    "mtime": 1789634321.3701434,
-    "ast_hash": "889106365535a29dd60457c08a3c0f29",
-    "semantic_hash": "889106365535a29dd60457c08a3c0f29"
+    "mtime": 1789706515.829886,
+    "ast_hash": "4e4be03ec2cd859a53d5124f411c5f7c",
+    "semantic_hash": "4e4be03ec2cd859a53d5124f411c5f7c"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Common/OfflineFallbackView.swift": {
     "mtime": 1789688388.482733,
@@ -545,9 +545,9 @@
     "semantic_hash": "cf18fa4b2c444100951076bb25645bbf"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Navigation/MainShellView.swift": {
-    "mtime": 1789703411.7429514,
-    "ast_hash": "ab79c704554d1aa439f325c599224edc",
-    "semantic_hash": "ab79c704554d1aa439f325c599224edc"
+    "mtime": 1789706825.7907982,
+    "ast_hash": "1fc3304fc639d3e4b27dbd5f548c0581",
+    "semantic_hash": "1fc3304fc639d3e4b27dbd5f548c0581"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Navigation/WindowSizeClass.swift": {
     "mtime": 1789634106.8063629,
@@ -555,24 +555,19 @@
     "semantic_hash": "40ae9182ed0c6449406102bf590bffb5"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Offline/DownloadViews.swift": {
-    "mtime": 1789703411.743154,
-    "ast_hash": "5a3d83fecd47098e89c38a45234589f8",
-    "semantic_hash": "5a3d83fecd47098e89c38a45234589f8"
+    "mtime": 1789706773.0286467,
+    "ast_hash": "2e10708da3823dba39523a143248a3a2",
+    "semantic_hash": "2e10708da3823dba39523a143248a3a2"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Offline/OfflineController.swift": {
-    "mtime": 1789703411.7433465,
-    "ast_hash": "6042a1422938918be480ff80a9f6ae03",
-    "semantic_hash": "6042a1422938918be480ff80a9f6ae03"
-  },
-  "swift/Packages/SplashKit/Sources/SplashUI/Purchase/OfflineEntitlementStore.swift": {
-    "mtime": 1789703411.7434878,
-    "ast_hash": "6411835fad2d8daa25c264a78b4f0c37",
-    "semantic_hash": "6411835fad2d8daa25c264a78b4f0c37"
+    "mtime": 1789707210.7889984,
+    "ast_hash": "a7081203cdee9df220e4c295403cd296",
+    "semantic_hash": "a7081203cdee9df220e4c295403cd296"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Purchase/PaywallView.swift": {
-    "mtime": 1789703411.7436755,
-    "ast_hash": "7fcc18be610759c217b29609e6509f2c",
-    "semantic_hash": "7fcc18be610759c217b29609e6509f2c"
+    "mtime": 1789706061.9521399,
+    "ast_hash": "9f1c10bccbae4f6ab76244322a72bbbd",
+    "semantic_hash": "9f1c10bccbae4f6ab76244322a72bbbd"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Reader/ContinuousReaderModel.swift": {
     "mtime": 1789670171.3890195,
@@ -615,14 +610,14 @@
     "semantic_hash": "a194f4a3df238913555e868ef9689fda"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Screens/BookScreen.swift": {
-    "mtime": 1789703411.7438877,
-    "ast_hash": "76044985cd9061c4590eee55427df737",
-    "semantic_hash": "76044985cd9061c4590eee55427df737"
+    "mtime": 1789706948.0542097,
+    "ast_hash": "9d2db648cc95fedbed64ce40abebdcfa",
+    "semantic_hash": "9d2db648cc95fedbed64ce40abebdcfa"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Screens/CollectionScreens.swift": {
-    "mtime": 1789703411.7440672,
-    "ast_hash": "698a7b6df581376a2f768ca87514630c",
-    "semantic_hash": "698a7b6df581376a2f768ca87514630c"
+    "mtime": 1789706640.5690844,
+    "ast_hash": "89103ad8518c1413cc9008fd49c8a775",
+    "semantic_hash": "89103ad8518c1413cc9008fd49c8a775"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Screens/DestinationView.swift": {
     "mtime": 1789703411.7442305,
@@ -630,24 +625,24 @@
     "semantic_hash": "4faef95ac8cbffce9d38189a50f55f87"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Screens/HomeScreen.swift": {
-    "mtime": 1789703411.7444162,
-    "ast_hash": "8818c7e87ee66efbd378ea4e007d7de0",
-    "semantic_hash": "8818c7e87ee66efbd378ea4e007d7de0"
+    "mtime": 1789706506.6316485,
+    "ast_hash": "d2072135969f2a76982a07693df68a7c",
+    "semantic_hash": "d2072135969f2a76982a07693df68a7c"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Screens/LibraryScreen.swift": {
-    "mtime": 1789703411.7446299,
-    "ast_hash": "3e8e279962cd612bff45f506a2dea448",
-    "semantic_hash": "3e8e279962cd612bff45f506a2dea448"
+    "mtime": 1789706923.6473544,
+    "ast_hash": "5bf6e807cbc00f05dcfd2253ea9ff79b",
+    "semantic_hash": "5bf6e807cbc00f05dcfd2253ea9ff79b"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Screens/SearchScreen.swift": {
-    "mtime": 1789703411.7447822,
-    "ast_hash": "73d68cd34617a05781a4cee0986c8ea8",
-    "semantic_hash": "73d68cd34617a05781a4cee0986c8ea8"
+    "mtime": 1789706578.7510657,
+    "ast_hash": "144d3595cd41fe27e412b559fb0a1f27",
+    "semantic_hash": "144d3595cd41fe27e412b559fb0a1f27"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Screens/SeriesScreen.swift": {
-    "mtime": 1789703411.744971,
-    "ast_hash": "8132a44d0ab1713da0106fbca3eb9b12",
-    "semantic_hash": "8132a44d0ab1713da0106fbca3eb9b12"
+    "mtime": 1789706923.6469965,
+    "ast_hash": "821c27424fb21600ac8ab4940762b82d",
+    "semantic_hash": "821c27424fb21600ac8ab4940762b82d"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Settings/LicensesView.swift": {
     "mtime": 1789652934.1068308,
@@ -655,9 +650,9 @@
     "semantic_hash": "2e9c5a410932e79a4f7c48507cb43614"
   },
   "swift/Packages/SplashKit/Sources/SplashUI/Settings/SettingsView.swift": {
-    "mtime": 1789703506.4783025,
-    "ast_hash": "99560c7dc2577053b42e8d6624d3791f",
-    "semantic_hash": "99560c7dc2577053b42e8d6624d3791f"
+    "mtime": 1789707288.3301945,
+    "ast_hash": "21f2241c00f9a34a3508c7f267d0da37",
+    "semantic_hash": "21f2241c00f9a34a3508c7f267d0da37"
   },
   "swift/Packages/SplashKit/Tests/KomgaAPITests/EncodingTests.swift": {
     "mtime": 1789633282.4551826,
@@ -765,9 +760,9 @@
     "semantic_hash": "e23423c227aa9613a4cddc23462aaa6c"
   },
   "swift/Packages/SplashKit/Tests/SplashDBTests/MigrationTests.swift": {
-    "mtime": 1789703411.7462447,
-    "ast_hash": "97a706410edb41c33a876c244ff907f7",
-    "semantic_hash": "97a706410edb41c33a876c244ff907f7"
+    "mtime": 1789705923.6863916,
+    "ast_hash": "24203d1b55a3f77fbaea7d8a5a29bd65",
+    "semantic_hash": "24203d1b55a3f77fbaea7d8a5a29bd65"
   },
   "swift/Packages/SplashKit/Tests/SplashDBTests/OfflineRecordTests.swift": {
     "mtime": 1789670171.3519933,
@@ -830,9 +825,9 @@
     "semantic_hash": "34e050c64565ac795ab9d7b034dafe42"
   },
   "swift/Packages/SplashKit/Tests/SplashUITests/EntitlementTests.swift": {
-    "mtime": 1789703411.746593,
-    "ast_hash": "2c0ff9735a432f417f9aa0c29d841602",
-    "semantic_hash": "2c0ff9735a432f417f9aa0c29d841602"
+    "mtime": 1789706095.2176077,
+    "ast_hash": "6f684b3a3683714f9369aefc8af88c9d",
+    "semantic_hash": "6f684b3a3683714f9369aefc8af88c9d"
   },
   "swift/Packages/SplashKit/Tests/SplashUITests/LoginViewModelTests.swift": {
     "mtime": 1789680068.3247702,
@@ -855,9 +850,9 @@
     "semantic_hash": "8e2153ef4ed7cd5f8e45f5b886d6020f"
   },
   "swift/Splash/App/SplashApp.swift": {
-    "mtime": 1789670171.34738,
-    "ast_hash": "fc70c591bb015493d72f3465aeb4fd13",
-    "semantic_hash": "fc70c591bb015493d72f3465aeb4fd13"
+    "mtime": 1789706061.9014747,
+    "ast_hash": "fa84a0385f47edfaf34cd03965761e91",
+    "semantic_hash": "fa84a0385f47edfaf34cd03965761e91"
   },
   "swift/Splash/Resources/Assets.xcassets/AccentColor.colorset/Contents.json": {
     "mtime": 1789633332.0097673,
@@ -918,5 +913,90 @@
     "mtime": 1789670405.8271973,
     "ast_hash": "89d83ff52a626903ffb6105ccba6fb74",
     "semantic_hash": "89d83ff52a626903ffb6105ccba6fb74"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Privacy/HiddenContent.swift": {
+    "mtime": 1789705860.5420136,
+    "ast_hash": "ce2b876f73171493ddd2fc8317044bab",
+    "semantic_hash": "ce2b876f73171493ddd2fc8317044bab"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Privacy/HiddenContentFilter.swift": {
+    "mtime": 1789706428.453444,
+    "ast_hash": "a8b8b41a3ddf9d7f145ae5a8cb0e990a",
+    "semantic_hash": "a8b8b41a3ddf9d7f145ae5a8cb0e990a"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/DeviceAuthenticating.swift": {
+    "mtime": 1789706121.128522,
+    "ast_hash": "df4dd5f47b116efd8380be64f5021757",
+    "semantic_hash": "df4dd5f47b116efd8380be64f5021757"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/HiddenDownloads.swift": {
+    "mtime": 1789707210.7981768,
+    "ast_hash": "190578dc1c5a089270ee90e0423372a6",
+    "semantic_hash": "190578dc1c5a089270ee90e0423372a6"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/HideMenuButton.swift": {
+    "mtime": 1789706910.6683896,
+    "ast_hash": "28b175f7e3353a951f49495af68aa149",
+    "semantic_hash": "28b175f7e3353a951f49495af68aa149"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/PrivacyBanner.swift": {
+    "mtime": 1789706856.3664699,
+    "ast_hash": "f9a48c2119e8f9c1feb6d1b13c87d8db",
+    "semantic_hash": "f9a48c2119e8f9c1feb6d1b13c87d8db"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/PrivacyBlur.swift": {
+    "mtime": 1789706856.3691857,
+    "ast_hash": "52df87e714fb095d1a63ef6f8aa6107f",
+    "semantic_hash": "52df87e714fb095d1a63ef6f8aa6107f"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/PrivacyController.swift": {
+    "mtime": 1789706368.9362442,
+    "ast_hash": "8546b5c13ba6b53e08905b444ec4fdeb",
+    "semantic_hash": "8546b5c13ba6b53e08905b444ec4fdeb"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/PrivacyHelpView.swift": {
+    "mtime": 1789707035.0580082,
+    "ast_hash": "4345e336607640fe3f490c1e2b1403c3",
+    "semantic_hash": "4345e336607640fe3f490c1e2b1403c3"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/PrivacyRevealGesture.swift": {
+    "mtime": 1789706888.1714354,
+    "ast_hash": "098c4c9ba96a33e6cfe6fbad52834f08",
+    "semantic_hash": "098c4c9ba96a33e6cfe6fbad52834f08"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Privacy/PrivacySettingsView.swift": {
+    "mtime": 1789707011.4087515,
+    "ast_hash": "861ef961dcb7a8eeb3ec6f59279e7c19",
+    "semantic_hash": "861ef961dcb7a8eeb3ec6f59279e7c19"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Purchase/PremiumAccessPolicy.swift": {
+    "mtime": 1789706036.3119714,
+    "ast_hash": "c62a6314a01efaa6170431cc548ed915",
+    "semantic_hash": "c62a6314a01efaa6170431cc548ed915"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Purchase/PremiumEntitlementStore.swift": {
+    "mtime": 1789706048.1383207,
+    "ast_hash": "2aa4cd9b4c5bec6dc9edc7ad19c5d680",
+    "semantic_hash": "2aa4cd9b4c5bec6dc9edc7ad19c5d680"
+  },
+  "swift/Packages/SplashKit/Tests/SplashCoreTests/HiddenContentFilterTests.swift": {
+    "mtime": 1789706428.4818704,
+    "ast_hash": "56c850697e79a1a70a47bc3ad6ce7e8e",
+    "semantic_hash": "56c850697e79a1a70a47bc3ad6ce7e8e"
+  },
+  "swift/Packages/SplashKit/Tests/SplashDBTests/PrivacyStoreTests.swift": {
+    "mtime": 1789705923.6921666,
+    "ast_hash": "56993c01c7319e2c5380a1febf324001",
+    "semantic_hash": "56993c01c7319e2c5380a1febf324001"
+  },
+  "swift/Packages/SplashKit/Tests/SplashUITests/HiddenDownloadsTests.swift": {
+    "mtime": 1789707233.0437925,
+    "ast_hash": "9fd2417b04155dde48074cd0fbaec8c7",
+    "semantic_hash": "9fd2417b04155dde48074cd0fbaec8c7"
+  },
+  "swift/Packages/SplashKit/Tests/SplashUITests/PrivacyControllerTests.swift": {
+    "mtime": 1789706322.040406,
+    "ast_hash": "154f378aa97bc7fa461fa99c62cca630",
+    "semantic_hash": "154f378aa97bc7fa461fa99c62cca630"
   }
 }
