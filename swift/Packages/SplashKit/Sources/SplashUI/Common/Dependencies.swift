@@ -17,6 +17,11 @@ public final class ViewModelFactory {
     public let authState: KomgaAuthenticationState
     public let events: KomgaEventSource
     public let thumbnails: ThumbnailLoader?
+    /// Supplied by the composition root so it resolves to `PrivacyController.filter()` — the one place that
+    /// knows both what is hidden *and* whether the private area is currently unlocked.
+    private let hiddenFilterProvider: @MainActor () -> HiddenContentFilter
+    /// Emits whenever the private set changes, so browsing screens reload themselves.
+    private let hiddenChangesProvider: @MainActor () -> AsyncStream<PrivacyState>
 
     public init(
         apiProvider: @escaping @MainActor () -> any KomgaApi,
@@ -25,7 +30,10 @@ public final class ViewModelFactory {
         homeFilters: HomeScreenFilterRepository,
         authState: KomgaAuthenticationState,
         events: KomgaEventSource,
-        thumbnails: ThumbnailLoader?
+        thumbnails: ThumbnailLoader?,
+        // Defaults to "nothing hidden" so previews and tests need not wire privacy at all.
+        hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled },
+        hiddenChanges: @escaping @MainActor () -> AsyncStream<PrivacyState> = { noHiddenChanges }
     ) {
         self.apiProvider = apiProvider
         self.settings = settings
@@ -34,37 +42,57 @@ public final class ViewModelFactory {
         self.authState = authState
         self.events = events
         self.thumbnails = thumbnails
+        self.hiddenFilterProvider = hiddenFilter
+        self.hiddenChangesProvider = hiddenChanges
     }
 
     var api: any KomgaApi { apiProvider() }
 
+    /// A **provider, not a snapshot**: screens call it on every fetch, so both hiding something and unlocking
+    /// the private area take effect without rebuilding the view model.
+    ///
+    /// It must resolve to `PrivacyController.filter()` and nothing else. A second copy of the rule here is
+    /// precisely how unlocking stopped revealing anything: the copy knew what was hidden but not that it had
+    /// been revealed, so every screen kept filtering.
+    var hiddenFilter: @MainActor () -> HiddenContentFilter { hiddenFilterProvider }
+
+    var hiddenChanges: @MainActor () -> AsyncStream<PrivacyState> { hiddenChangesProvider }
+
     func homeViewModel() -> HomeViewModel {
-        HomeViewModel(api: api, filters: homeFilters, events: events)
+        HomeViewModel(
+            api: api, filters: homeFilters, events: events, authState: authState,
+            hiddenFilter: hiddenFilter, hiddenChanges: hiddenChanges)
     }
 
     func libraryViewModel(libraryId: KomgaLibraryId?) -> LibraryViewModel {
-        LibraryViewModel(api: api, libraryId: libraryId, authState: authState, settings: settings, events: events)
+        LibraryViewModel(
+            api: api, libraryId: libraryId, authState: authState, settings: settings, events: events,
+            hiddenFilter: hiddenFilter, hiddenChanges: hiddenChanges)
     }
 
     func seriesViewModel(seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil) -> SeriesViewModel {
         SeriesViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, settings: settings,
-                        events: events)
+                        events: events, hiddenFilter: hiddenFilter)
     }
 
     func bookViewModel(bookId: KomgaBookId, api: (any KomgaApi)? = nil) -> BookViewModel {
-        BookViewModel(bookId: bookId, api: api ?? self.api, authState: authState, events: events)
+        BookViewModel(bookId: bookId, api: api ?? self.api, authState: authState, events: events,
+                      hiddenFilter: hiddenFilter)
     }
 
     func oneshotViewModel(seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil) -> OneshotViewModel {
-        OneshotViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, events: events)
+        OneshotViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, events: events,
+                         hiddenFilter: hiddenFilter)
     }
 
     func collectionViewModel(collectionId: KomgaCollectionId) -> CollectionViewModel {
-        CollectionViewModel(collectionId: collectionId, api: api, settings: settings, events: events)
+        CollectionViewModel(collectionId: collectionId, api: api, settings: settings, events: events,
+                            hiddenFilter: hiddenFilter)
     }
 
     func readListViewModel(readListId: KomgaReadListId) -> ReadListViewModel {
-        ReadListViewModel(readListId: readListId, api: api, settings: settings, events: events)
+        ReadListViewModel(readListId: readListId, api: api, settings: settings, events: events,
+                          hiddenFilter: hiddenFilter)
     }
 
     /// `api` overrides the active API for this reader only — used to read a downloaded book from the
@@ -76,6 +104,6 @@ public final class ViewModelFactory {
     }
 
     func searchViewModel(query: String?) -> SearchViewModel {
-        SearchViewModel(api: api, initialQuery: query ?? "")
+        SearchViewModel(api: api, initialQuery: query ?? "", hiddenFilter: hiddenFilter)
     }
 }

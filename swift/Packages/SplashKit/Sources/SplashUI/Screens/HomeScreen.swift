@@ -33,16 +33,31 @@ public final class HomeViewModel {
     private let api: any KomgaApi
     private let filters: HomeScreenFilterRepository
     private let events: KomgaEventSource
+    /// The library list, needed for the allow-list on the three endpoints that take no condition.
+    private let authState: KomgaAuthenticationState
+    /// A provider, not a snapshot: re-read on every fetch so hiding and unlocking both take effect live.
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
     private var eventTask: Task<Void, Never>?
+    private var hiddenTask: Task<Void, Never>?
     @ObservationIgnored private lazy var reloader = ReloadScheduler(cooldown: .seconds(5)) { [weak self] in
         await self?.load()
     }
 
-    init(api: any KomgaApi, filters: HomeScreenFilterRepository, events: KomgaEventSource) {
+    init(
+        api: any KomgaApi, filters: HomeScreenFilterRepository, events: KomgaEventSource,
+        authState: KomgaAuthenticationState,
+        hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled },
+        hiddenChanges: @escaping @MainActor () -> AsyncStream<PrivacyState> = { noHiddenChanges }
+    ) {
         self.api = api
         self.filters = filters
         self.events = events
+        self.authState = authState
+        self.hiddenFilter = hiddenFilter
+        self.hiddenChanges = hiddenChanges
     }
+
+    private let hiddenChanges: @MainActor () -> AsyncStream<PrivacyState>
 
     public func initialize() async {
         guard state.isUninitialized else { return }
@@ -54,6 +69,7 @@ public final class HomeViewModel {
             default: break
             }
         }
+        hiddenTask = listenHidden(to: hiddenChanges) { [weak self] in await self?.load() }
         await load()
     }
 
@@ -62,7 +78,10 @@ public final class HomeViewModel {
     public func load() async {
         state = .loading
         do {
-            let loaded = try await Self.fetchAll(filters.value, api: api)
+            let hidden = hiddenFilter()
+            let loaded = try await Self.fetchAll(
+                filters.value, api: api, hidden: hidden,
+                libraryIds: hidden.libraryAllowList(from: authState.libraries))
             sections = loaded.sorted { $0.filter.order < $1.filter.order }
             state = .success(())
         } catch {
@@ -71,10 +90,16 @@ public final class HomeViewModel {
     }
 
     /// All filters concurrently (`map { async { fetchFilterData(it) } }.awaitAll()`).
-    nonisolated static func fetchAll(_ filters: [HomeScreenFilter], api: any KomgaApi) async throws -> [Section] {
+    ///
+    /// `hidden` and `libraryIds` are parameters rather than reads off `self` because these are `nonisolated`
+    /// and `static` — there is no `self` here to reach the controller or `authState` through.
+    nonisolated static func fetchAll(
+        _ filters: [HomeScreenFilter], api: any KomgaApi, hidden: HiddenContentFilter = .disabled,
+        libraryIds: [KomgaLibraryId]? = nil
+    ) async throws -> [Section] {
         try await withThrowingTaskGroup(of: Section.self) { group in
             for filter in filters {
-                group.addTask { try await fetch(filter, api: api) }
+                group.addTask { try await fetch(filter, api: api, hidden: hidden, libraryIds: libraryIds) }
             }
             var sections: [Section] = []
             for try await section in group { sections.append(section) }
@@ -83,27 +108,37 @@ public final class HomeViewModel {
     }
 
     /// `fetchFilterData(filter)` — one strategy per filter kind.
-    nonisolated static func fetch(_ filter: HomeScreenFilter, api: any KomgaApi) async throws -> Section {
+    ///
+    /// Two of the five branches can carry a condition; the other three accept only a library allow-list. In
+    /// every case `hidden.visible(...)` runs over the result, because no Komga condition can exclude a series
+    /// from a series query or a book from a book query.
+    nonisolated static func fetch(
+        _ filter: HomeScreenFilter, api: any KomgaApi, hidden: HiddenContentFilter = .disabled,
+        libraryIds: [KomgaLibraryId]? = nil
+    ) async throws -> Section {
         switch filter {
         case .booksCustom(_, _, let condition, let text, _, _):
             let books = try await api.bookApi.getBookList(
-                search: KomgaBookSearch(condition: condition, fullTextSearch: text), pageRequest: filter.pageRequest)
-            return .books(filter, books.content)
+                search: KomgaBookSearch(condition: hidden.combined(condition), fullTextSearch: text),
+                pageRequest: filter.pageRequest)
+            return .books(filter, hidden.visible(books.content))
         case .booksOnDeck(_, _, let pageSize):
-            let books = try await api.bookApi.getBooksOnDeck(libraryIds: nil, pageRequest: KomgaPageRequest(size: pageSize))
-            return .books(filter, books.content)
+            let books = try await api.bookApi.getBooksOnDeck(
+                libraryIds: libraryIds, pageRequest: KomgaPageRequest(size: pageSize))
+            return .books(filter, hidden.visible(books.content))
         case .seriesCustom(_, _, let condition, let text, _, _):
             let series = try await api.seriesApi.getSeriesList(
-                search: KomgaSeriesSearch(condition: condition, fullTextSearch: text), pageRequest: filter.pageRequest)
-            return .series(filter, series.content)
+                search: KomgaSeriesSearch(condition: hidden.combined(condition), fullTextSearch: text),
+                pageRequest: filter.pageRequest)
+            return .series(filter, hidden.visible(series.content))
         case .seriesRecentlyAdded(_, _, let pageSize):
             let series = try await api.seriesApi.getNewSeries(
-                libraryIds: nil, oneshot: false, deleted: nil, pageRequest: KomgaPageRequest(size: pageSize))
-            return .series(filter, series.content)
+                libraryIds: libraryIds, oneshot: false, deleted: nil, pageRequest: KomgaPageRequest(size: pageSize))
+            return .series(filter, hidden.visible(series.content))
         case .seriesRecentlyUpdated(_, _, let pageSize):
             let series = try await api.seriesApi.getUpdatedSeries(
-                libraryIds: nil, oneshot: false, deleted: nil, pageRequest: KomgaPageRequest(size: pageSize))
-            return .series(filter, series.content)
+                libraryIds: libraryIds, oneshot: false, deleted: nil, pageRequest: KomgaPageRequest(size: pageSize))
+            return .series(filter, hidden.visible(series.content))
         }
     }
 }

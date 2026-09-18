@@ -23,12 +23,17 @@ public final class CollectionViewModel {
         await self.load(page: self.currentPage)
     }
 
+    /// A provider, not a snapshot: re-read per fetch so unlocking takes effect without a rebuild.
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
     init(collectionId: KomgaCollectionId, api: any KomgaApi, settings: CommonSettingsRepository,
-         events: KomgaEventSource) {
+         events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
         self.collectionId = collectionId
         self.api = api
         self.settings = settings
         self.events = events
+        self.hiddenFilter = hiddenFilter
     }
 
     var cardWidth: CGFloat { CGFloat(settings.value.cardWidth) }
@@ -56,7 +61,9 @@ public final class CollectionViewModel {
                 pageRequest: KomgaPageRequest(pageIndex: page - 1, size: settings.value.seriesPageLoadSize))
             self.collection = try await collection
             let result = try await series
-            self.series = result.content
+            // `KomgaCollectionQuery` is inclusion-only — it has no negation — so this is purely client-side,
+            // and the page can therefore render fewer cards than `totalPages` implies.
+            self.series = hiddenFilter().visible(result.content)
             currentPage = result.number + 1
             totalPages = max(result.totalPages, 1)
             state = .success(())
@@ -113,12 +120,17 @@ public final class ReadListViewModel {
         await self.load(page: self.currentPage)
     }
 
+    /// A provider, not a snapshot: re-read per fetch so unlocking takes effect without a rebuild.
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
     init(readListId: KomgaReadListId, api: any KomgaApi, settings: CommonSettingsRepository,
-         events: KomgaEventSource) {
+         events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
         self.readListId = readListId
         self.api = api
         self.settings = settings
         self.events = events
+        self.hiddenFilter = hiddenFilter
     }
 
     var cardWidth: CGFloat { CGFloat(settings.value.cardWidth) }
@@ -146,7 +158,8 @@ public final class ReadListViewModel {
                 pageRequest: KomgaPageRequest(pageIndex: page - 1, size: settings.value.bookPageLoadSize))
             self.readList = try await readList
             let result = try await books
-            self.books = result.content
+            // `KomgaReadListQuery` is inclusion-only too — same client-side guard, same caveat on totals.
+            self.books = hiddenFilter().visible(result.content)
             currentPage = result.number + 1
             totalPages = max(result.totalPages, 1)
             state = .success(())

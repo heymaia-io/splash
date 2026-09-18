@@ -1,12 +1,17 @@
 import SwiftUI
 
-/// Paywall for the offline unlock (plan Phase 16). Shown when a download or offline mode is requested
-/// without the purchase.
+/// Paywall for the one-time premium unlock. Shown when a download, offline mode, or the private area is
+/// requested without the purchase.
+///
+/// The copy comes from a `PaywallContext` rather than being hardcoded, because a single SKU unlocks several
+/// features and each one should lead with what the user just tried to do.
 public struct PaywallView: View {
-    @Bindable var store: OfflineEntitlementStore
+    @Bindable var store: PremiumEntitlementStore
     @Environment(\.dismiss) private var dismiss
 
-    public init(store: OfflineEntitlementStore) {
+    private var context: PaywallContext { store.paywallContext }
+
+    public init(store: PremiumEntitlementStore) {
         self.store = store
     }
 
@@ -14,21 +19,20 @@ public struct PaywallView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    Image(systemName: "arrow.down.circle.fill")
+                    Image(systemName: context.icon)
                         .font(.system(size: 64))
                         .foregroundStyle(.tint)
                         .accessibilityHidden(true)
                     VStack(spacing: 8) {
-                        Text("Read offline").font(.largeTitle.bold())
-                        Text("Reading online stays free and unlimited. Unlock offline reading once to take your comics anywhere.")
+                        Text(context.title).font(.largeTitle.bold())
+                        Text(context.subtitle)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
                     }
                     VStack(alignment: .leading, spacing: 14) {
-                        Benefit(icon: "books.vertical", text: "Download books and whole series")
-                        Benefit(icon: "airplane", text: "Read comics, PDFs and EPUBs without a connection")
-                        Benefit(icon: "arrow.triangle.2.circlepath", text: "Progress syncs back when you're online")
-                        Benefit(icon: "checkmark.seal", text: "One-time purchase — no subscription")
+                        ForEach(context.benefits, id: \.icon) { benefit in
+                            BenefitRow(icon: benefit.icon, text: benefit.text)
+                        }
                     }
                     .frame(maxWidth: 420, alignment: .leading)
 
@@ -99,9 +103,9 @@ extension PaywallView {
     }
 }
 
-private struct Benefit: View {
+private struct BenefitRow: View {
     let icon: String
-    let text: LocalizedStringKey
+    let text: LocalizedStringResource
 
     var body: some View {
         Label {

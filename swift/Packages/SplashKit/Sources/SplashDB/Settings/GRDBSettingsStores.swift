@@ -64,6 +64,39 @@ public struct GRDBHomeScreenFilterStore<Filter: Codable & Sendable>: SettingsSto
     }
 }
 
+/// [NUEVO] The private-content state is one JSON blob in the `version = 1` row, like the home filters.
+///
+/// Generic over the state so `SplashDB` need not know the `PrivacyState` shape, matching
+/// `GRDBHomeScreenFilterStore`.
+public struct GRDBPrivacyStore<State: Codable & Sendable>: SettingsStore {
+    private let writer: any DatabaseWriter
+
+    public init(_ writer: any DatabaseWriter) { self.writer = writer }
+
+    /// Undecodable JSON yields `nil`, which makes the defaults get re-saved — i.e. a bad decode *erases* the
+    /// user's hidden set. `PrivacyState.init(from:)` is written to never throw for that reason; keep that in
+    /// mind for any future shape change here.
+    public func load() async throws -> State? {
+        let json = try await writer.read { db in
+            try String.fetchOne(db, sql: "SELECT state FROM Privacy WHERE version = 1")
+        }
+        guard let json else { return nil }
+        return try? JSONDecoder().decode(State.self, from: Data(json.utf8))
+    }
+
+    public func save(_ value: State) async throws {
+        let json = String(decoding: try JSONEncoder().encode(value), as: UTF8.self)
+        try await writer.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO Privacy (version, state) VALUES (1, ?)
+                    ON CONFLICT (version) DO UPDATE SET state = excluded.state
+                    """,
+                arguments: [json])
+        }
+    }
+}
+
 // MARK: - Rows
 
 /// Enum columns hold the Kotlin enum name; an unknown name is a decoding error (Kotlin `valueOf` throws too).

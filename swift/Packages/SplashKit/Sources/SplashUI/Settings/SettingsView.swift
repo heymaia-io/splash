@@ -44,6 +44,12 @@ public struct SettingsView: View {
                 NavigationLink { DownloadsSettingsView() } label: {
                     Label("Downloads", systemImage: "arrow.down.circle")
                 }
+                // Only while unlocked: the row itself would otherwise announce that the feature exists.
+                if let privacy = session.privacy, privacy.isUnlocked {
+                    NavigationLink { PrivacySettingsView(api: api, privacy: privacy) } label: {
+                        Label("Private", systemImage: "eye.slash")
+                    }
+                }
             }
             Section("Account") {
                 NavigationLink { AccountSettingsView(session: session, onLoggedOut: onLoggedOut) } label: {
@@ -55,7 +61,12 @@ public struct SettingsView: View {
             }
             if isAdmin {
                 Section("Server") {
-                    NavigationLink { ServerSettingsView(api: api, libraries: session.authState.libraries) } label: {
+                    NavigationLink {
+                        // Library names and their filesystem roots — as revealing as any shelf.
+                        ServerSettingsView(
+                            api: api,
+                            libraries: (session.privacy?.filter() ?? .disabled).visible(session.authState.libraries))
+                    } label: {
                         Label("Server settings", systemImage: "server.rack")
                     }
                     NavigationLink { UsersView(api: api) } label: {
@@ -64,7 +75,9 @@ public struct SettingsView: View {
                     NavigationLink { AuthenticationActivityView(api: api, all: true) } label: {
                         Label("Authentication activity", systemImage: "list.bullet.rectangle")
                     }
-                    NavigationLink { MediaAnalysisView(api: api) } label: {
+                    NavigationLink {
+                        MediaAnalysisView(api: api, hidden: session.privacy?.filter() ?? .disabled)
+                    } label: {
                         Label("Media analysis", systemImage: "exclamationmark.triangle")
                     }
                     NavigationLink { AnnouncementsView(api: api) } label: {
@@ -296,9 +309,18 @@ struct AccountSettingsView: View {
     }
 
     /// Names every library this account is allowed to see.
+    ///
+    /// Hidden libraries are dropped from the names, and "All libraries" is spelled out instead when any are
+    /// hidden — otherwise the row would silently name something the rest of the app is hiding.
     private func libraryAccess(_ user: KomgaUser) -> String {
-        guard !user.sharedAllLibraries else { return String(localized: "All libraries") }
-        let names = session.authState.libraries
+        let filter = session.privacy?.filter() ?? .disabled
+        let visible = filter.visible(session.authState.libraries)
+        guard !user.sharedAllLibraries else {
+            return filter.isNoop
+                ? String(localized: "All libraries")
+                : visible.map(\.name).sorted().joined(separator: ", ")
+        }
+        let names = visible
             .filter { user.sharedLibrariesIds.contains($0.id) }
             .map(\.name)
             .sorted()
@@ -390,12 +412,18 @@ struct AuthenticationActivityView: View {
 /// `MediaAnalysisViewModel` — books whose media is in ERROR/UNSUPPORTED state.
 struct MediaAnalysisView: View {
     let api: any KomgaApi
+    /// A server-wide book list showing each book's **full filesystem path** — the most revealing admin screen.
+    let hidden: HiddenContentFilter
     var body: some View {
         RemoteListView(title: "Media analysis", load: {
-            try await api.bookApi.getBookList(
-                condition: .anyOfBooks(.mediaStatus(.isEqualTo(.error)), .mediaStatus(.isEqualTo(.unsupported))),
+            // `combined` returns the condition untouched when nothing is hidden, so this stays the exact
+            // request it was before the feature existed.
+            let books = try await api.bookApi.getBookList(
+                condition: hidden.combined(
+                    .anyOfBooks(.mediaStatus(.isEqualTo(.error)), .mediaStatus(.isEqualTo(.unsupported)))),
                 pageRequest: KomgaPageRequest(size: 500)
             ).content
+            return hidden.visible(books)
         }) { book in
             VStack(alignment: .leading) {
                 Text(book.name)
@@ -498,9 +526,15 @@ struct ServerSettingsView: View {
 // MARK: - About
 
 struct AboutView: View {
+    @State private var showsPrivacyHelp = false
+
     var body: some View {
         Form {
             LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
+                .modifier(PrivacyHelpTapTarget(isPresented: $showsPrivacyHelp))
+            if showsPrivacyHelp {
+                NavigationLink("Private content") { PrivacyHelpView() }
+            }
             Section {
                 Text("A client for Komga servers. Reading online is free and unlimited; offline reading is a one-time purchase.")
                 Text("Privacy: the app collects no data. Everything stays on your device and your Komga server.")

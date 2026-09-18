@@ -60,6 +60,7 @@ public enum MainTab: String, CaseIterable, Identifiable, Sendable {
 public struct MainShellView<Content: View>: View {
     @Bindable var model: MainScreenViewModel
     let content: (Destination) -> Content
+    @Environment(\.privacy) private var privacy
 
     public init(model: MainScreenViewModel, @ViewBuilder content: @escaping (Destination) -> Content) {
         self.model = model
@@ -71,7 +72,15 @@ public struct MainShellView<Content: View>: View {
             rootScreen
                 .navigationDestination(for: Destination.self) { content($0) }
         }
-        .id(model.navigator.root)  // replaceAll => fresh stack, like Voyager
+        // replaceAll => fresh stack, like Voyager. Keyed on the unlock state too: revealing or locking
+        // writes nothing to any repository, so no `values()` subscription fires and the screens would
+        // otherwise keep showing the results they fetched under the previous filter.
+        .id(ShellIdentity(root: model.navigator.root, isUnlocked: privacy?.isUnlocked ?? false))
+    }
+
+    private struct ShellIdentity: Hashable {
+        let root: Destination
+        let isUnlocked: Bool
     }
 
     /// Only the *root* of a tab carries the tab picker and the search field: pushed screens get the usual

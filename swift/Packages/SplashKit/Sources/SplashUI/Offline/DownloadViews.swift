@@ -51,6 +51,7 @@ struct BookDownloadButton: View {
 /// `settings/offline` + `settings/offline/downloads` (downloads list, storage, network, mode).
 public struct DownloadsSettingsView: View {
     @Environment(\.offlineController) private var offline
+    @Environment(\.privacy) private var privacy
     @State private var users: [OfflineUserChoice] = []
 
     public init() {}
@@ -83,22 +84,26 @@ public struct DownloadsSettingsView: View {
                 Text("Offline mode")
             } footer: {
                 if !offline.access.isUnlocked {
-                    Button("Unlock offline reading") { offline.access.requestUnlock() }
+                    Button("Unlock offline reading") { offline.access.requestUnlock(for: .offline) }
                 }
             }
 
+            // Completed downloads are listed here too, so this leaks titles just as readily as the tab.
+            let visibleDownloads = offline.visible(offline.sortedDownloads, privacy?.filter() ?? .disabled)
             Section("Downloads") {
-                if offline.sortedDownloads.isEmpty {
+                if visibleDownloads.isEmpty {
                     Text("No downloads").foregroundStyle(.secondary)
                 }
-                ForEach(offline.sortedDownloads) { download in
+                ForEach(visibleDownloads) { download in
                     DownloadRow(download: download, offline: offline)
                 }
+                // Indexes are into the *filtered* list — deleting by position in the unfiltered one would
+                // delete the wrong download whenever anything is hidden.
                 .onDelete { indexes in
-                    for index in indexes { offline.delete(book: offline.sortedDownloads[index].bookId) }
+                    for index in indexes { offline.delete(book: visibleDownloads[index].bookId) }
                 }
             }
-            if offline.sortedDownloads.contains(where: { $0.status == .complete || $0.status == .failed }) {
+            if visibleDownloads.contains(where: { $0.status == .complete || $0.status == .failed }) {
                 Button("Clear finished from list") { offline.clearFinished() }
             }
         }
@@ -188,6 +193,7 @@ struct DownloadsView: View {
     let cardWidth: CGFloat
     let navigate: (Destination) -> Void
     @Environment(\.offlineController) private var offline
+    @Environment(\.privacy) private var privacy
     @State private var series: [KomgaSeries] = []
     @State private var state: LoadState<Void> = .uninitialized
 
@@ -243,13 +249,16 @@ struct DownloadsView: View {
         } description: {
             Text("Download comics, PDFs and EPUBs and read them without a connection.")
         } actions: {
-            Button("Unlock offline reading") { offline.access.requestUnlock() }
+            Button("Unlock offline reading") { offline.access.requestUnlock(for: .offline) }
                 .buttonStyle(.borderedProminent)
         }
     }
 
     @ViewBuilder private func activeTransfers(_ offline: OfflineController) -> some View {
-        let active = offline.sortedDownloads.filter { $0.status == .queued || $0.status == .downloading || $0.status == .failed }
+        // A transfer row carries the book title, so it hides exactly like a card does. The shelf itself is
+        // already filtered inside `downloadedSeries()`.
+        let visible = offline.visible(offline.sortedDownloads, privacy?.filter() ?? .disabled)
+        let active = visible.filter { $0.status == .queued || $0.status == .downloading || $0.status == .failed }
         if !active.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("In progress").font(.title3.bold()).padding(.horizontal)

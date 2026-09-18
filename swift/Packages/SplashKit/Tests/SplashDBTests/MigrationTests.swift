@@ -13,7 +13,7 @@ import Testing
     @Test func appDatabaseHasExpectedTables() async throws {
         let database = try SplashDatabase.inMemory()
         let tables = try await database.app.read(userTables)
-        #expect(tables == ["AppSettings", "ImageReaderSettings", "EpubReaderSettings", "HomeScreenFilters"])
+        #expect(tables == ["AppSettings", "ImageReaderSettings", "EpubReaderSettings", "HomeScreenFilters", "Privacy"])
         #expect(tables == AppMigrations.tableNames)
     }
 
@@ -58,5 +58,8 @@ import Testing
             try OfflineMigrations.migrator.appliedMigrations(db)
         }
         #expect(offlineApplied == ["v1_offline_mode", "v2_book_download"])
+
+        let appApplied = try await temp.database.app.read { db in try AppMigrations.migrator.appliedMigrations(db) }
+        #expect(appApplied == ["v1_initial", "v2_privacy"])
     }
 }

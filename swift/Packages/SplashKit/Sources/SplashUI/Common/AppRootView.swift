@@ -21,7 +21,9 @@ public protocol AppSession: LoginSession {
     /// API backed purely by the offline store, used to browse downloaded content without a connection.
     var offlineApi: any KomgaApi { get }
     /// nil when purchases are not configured (tests/previews) — offline is then unrestricted.
-    var entitlements: OfflineEntitlementStore? { get }
+    var entitlements: PremiumEntitlementStore? { get }
+    /// nil when privacy is not configured (tests/previews) — nothing is then hidden.
+    var privacy: PrivacyController? { get }
 }
 
 /// Port of `MainView.kt`'s root navigator: Login ↔ main shell, driven by the authentication state.
@@ -58,6 +60,9 @@ public struct AppRootView: View {
                         if session.isOfflineMode, let offline = session.offlineController {
                             OfflineBanner(offline: offline)
                         }
+                        if let privacy = session.privacy, privacy.isUnlocked {
+                            PrivacyBanner(privacy: privacy)
+                        }
                         main(mainModel)
                     }
                     .id(session.contentGeneration)
@@ -72,6 +77,7 @@ public struct AppRootView: View {
         }
         .environment(\.thumbnailLoader, session.viewModelFactory.thumbnails)
         .environment(\.offlineController, session.offlineController)
+        .environment(\.privacy, session.privacy)
         .preferredColorScheme(session.settings.value.appTheme.colorScheme)
         .background(session.settings.value.appTheme == .darker ? Color.black.ignoresSafeArea() : nil)
         .sheet(isPresented: Binding(
@@ -90,6 +96,18 @@ public struct AppRootView: View {
         // [NUEVO] iOS lifecycle: pause SSE in background, resume when active (plan Phase 7).
         .onChange(of: scenePhase) { _, phase in
             session.setLiveEventsActive(phase == .active && session.authState.state == .loaded)
+            session.privacy?.scenePhaseChanged(phase)
+        }
+        // [NUEVO] The app-switcher snapshot is taken while `.inactive`; without this it would preserve
+        // everything the feature hides, in a thumbnail the user cannot dismiss.
+        .privacyBlur(isActive: (session.privacy?.isUnlocked ?? false) && scenePhase != .active)
+        .task {
+            // Being deep inside content that is about to vanish must eject you, or you are left on a detail
+            // screen for an item that no longer appears in any list.
+            session.privacy?.onLock = { [weak mainModel] in
+                mainModel?.navigator.replaceAll(.home)
+                mainModel?.searchQuery = ""
+            }
         }
     }
 
@@ -127,6 +145,10 @@ public struct AppRootView: View {
     /// EPUB books go to the Readium reader (plan Phase 15); everything else (CBZ, images, PDF) to the image
     /// reader. EPUBs that Komga marks as DiViNa-compatible (fixed-layout comics) also use the image reader.
     private func open(_ book: SplashBook) {
+        // This is the one path into the reader that does not come through a filtered listing — it is also
+        // reached by `initialBook` at launch, which is restored from the last session and can name a book
+        // hidden since. Silently doing nothing is deliberate: an error would confirm the book exists.
+        guard !(session.privacy?.filter() ?? .disabled).isHidden(book: book) else { return }
         guard book.media.mediaProfile == .epub, !book.media.epubDivinaCompatible else {
             Task { readerApi = await session.readingApi(for: book); readingBook = book }
             return

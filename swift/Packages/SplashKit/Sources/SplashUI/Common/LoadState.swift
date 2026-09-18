@@ -1,3 +1,4 @@
+import SplashCore
 import Foundation
 
 /// Port of `snd.komelia.ui.LoadState`.
@@ -69,3 +70,26 @@ func listen(
         for await event in stream { handler(event) }
     }
 }
+
+/// [NUEVO] Reloads a screen when the private-content set changes, so hiding something takes effect without
+/// leaving the screen.
+///
+/// **The first emission is skipped**: `SettingsState.values()` replays the current value on subscribe, and
+/// `initialize()` has already loaded with it — reacting to it would double every screen's first fetch.
+@MainActor
+func listenHidden(
+    to changes: @escaping @MainActor () -> AsyncStream<PrivacyState>, _ reload: @escaping @MainActor () async -> Void
+) -> Task<Void, Never> {
+    let stream = changes()
+    return Task {
+        var isFirst = true
+        for await _ in stream {
+            if isFirst { isFirst = false; continue }
+            await reload()
+        }
+    }
+}
+
+/// The "privacy is not configured" stream: finishes immediately, so subscribers do not linger.
+@MainActor
+public var noHiddenChanges: AsyncStream<PrivacyState> { AsyncStream { $0.finish() } }

@@ -48,7 +48,10 @@ public final class AppModule: AppSession {
     public let offlineSettings: OfflineSettingsStateRepository
     public let remoteApi: RemoteKomgaApi
     public private(set) var offlineController: OfflineController?
-    public private(set) var entitlements: OfflineEntitlementStore?
+    public private(set) var entitlements: PremiumEntitlementStore?
+    public let privacyState: PrivacyStateRepository
+    /// Built after `init` because it needs the access policy, exactly like `offlineController`.
+    public private(set) var privacy: PrivacyController?
     /// Changes whenever the active API switches (online ↔ offline) so the UI rebuilds its screens.
     public private(set) var contentGeneration = 0
     public private(set) var isOfflineMode: Bool
@@ -60,7 +63,10 @@ public final class AppModule: AppSession {
         homeFilters: homeFilters,
         authState: authState,
         events: events,
-        thumbnails: thumbnails)
+        thumbnails: thumbnails,
+        // The one source of truth. `.disabled` until privacy is wired, and whenever it is not configured.
+        hiddenFilter: { [unowned self] in self.privacy?.filter() ?? .disabled },
+        hiddenChanges: { [unowned self] in self.privacyState.values() })
 
     /// The API every screen uses: remote, or the offline implementation while in offline mode.
     public var api: any KomgaApi { apiHolder.current }
@@ -73,14 +79,15 @@ public final class AppModule: AppSession {
     @ObservationIgnored private let server: ServerURLHolder
     @ObservationIgnored private let apiHolder: ApiHolder
     @ObservationIgnored private let liveEvents: LiveEventsController
-    @ObservationIgnored private var accessPolicy: any OfflineAccessPolicy = AlwaysUnlockedPolicy()
+    @ObservationIgnored private var accessPolicy: any PremiumAccessPolicy = AlwaysUnlockedPolicy()
 
     private init(
         settings: CommonSettingsRepository, imageReaderSettings: ImageReaderSettingsRepository,
         homeFilters: HomeScreenFilterRepository, epubSettings: EpubReaderSettingsRepository,
-        offlineSettings: OfflineSettingsStateRepository, storage: Storage
+        offlineSettings: OfflineSettingsStateRepository, privacyState: PrivacyStateRepository, storage: Storage
     ) {
         self.epubSettings = epubSettings
+        self.privacyState = privacyState
         self.settings = settings
         self.imageReaderSettings = imageReaderSettings
         self.homeFilters = homeFilters
@@ -130,7 +137,7 @@ public final class AppModule: AppSession {
     }
 
     /// `initDependencies()`
-    public static func make(storage: Storage, accessPolicy: (any OfflineAccessPolicy)? = nil) async throws
+    public static func make(storage: Storage, accessPolicy: (any PremiumAccessPolicy)? = nil) async throws
         -> AppModule
     {
         let db = storage.database
@@ -143,9 +150,12 @@ public final class AppModule: AppSession {
             from: GRDBEpubReaderSettingsStore<EpubReaderSettings>(db.app), default: EpubReaderSettings())
         let offlineSettings = try await OfflineSettingsStateRepository.load(
             database: db, defaultDownloadDirectory: storage.downloadRoot)
+        let privacyState = try await SettingsState.load(
+            from: GRDBPrivacyStore<PrivacyState>(db.app), default: PrivacyState())
         let module = AppModule(
             settings: settings, imageReaderSettings: readerSettings, homeFilters: filters,
-            epubSettings: epubSettings, offlineSettings: offlineSettings, storage: storage)
+            epubSettings: epubSettings, offlineSettings: offlineSettings, privacyState: privacyState,
+            storage: storage)
         if let accessPolicy { module.accessPolicy = accessPolicy }
         await module.cookieStore.loadRememberMeCookie()
         await module.apiKeyStore.loadStoredApiKey(serverURL: module.settings.value.serverUrl)
@@ -154,6 +164,9 @@ public final class AppModule: AppSession {
             wifiOnly: UserDefaults.standard.bool(forKey: wifiOnlyKey),
             onWifiOnlyChange: { UserDefaults.standard.set($0, forKey: wifiOnlyKey) })
         module.offlineController = controller
+        // Same access policy as downloads: one purchase gates both.
+        module.privacy = PrivacyController(
+            state: privacyState, settings: settings, access: module.accessPolicy)
         await module.offline.start()
         controller.start()
         return module
@@ -162,7 +175,7 @@ public final class AppModule: AppSession {
     static let wifiOnlyKey = "downloads.wifiOnly"
 
     /// Production entry point used by the app target.
-    public static func makeDefault(accessPolicy: (any OfflineAccessPolicy)? = nil) async throws -> AppModule {
+    public static func makeDefault(accessPolicy: (any PremiumAccessPolicy)? = nil) async throws -> AppModule {
         let support = try FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let directory = support.appending(path: "Splash", directoryHint: .isDirectory)
@@ -183,14 +196,17 @@ public final class AppModule: AppSession {
         return try await make(storage: storage, accessPolicy: accessPolicy)
     }
 
-    /// Production wiring of the paid offline unlock (plan Phase 16).
+    /// Production wiring of the one-time premium unlock.
     public static func makeDefaultWithStore() async throws -> AppModule {
-        let store = OfflineEntitlementStore(provider: StoreKitOfflineProvider())
+        let store = PremiumEntitlementStore(provider: StoreKitPremiumProvider())
         #if DEBUG
-        // Debug builds only: `SPLASH_UNLOCK_OFFLINE=1` skips the entitlement check so downloads and offline
-        // mode can be exercised without going through StoreKit at all. Deliberately compiled out of release
-        // builds — a bypass that ships is a bypass anyone can find in the binary.
-        if ProcessInfo.processInfo.environment["SPLASH_UNLOCK_OFFLINE"] == "1" {
+        // Debug builds only: `SPLASH_UNLOCK_PREMIUM=1` skips the entitlement check so downloads, offline mode
+        // and private content can be exercised without going through StoreKit at all. Deliberately compiled
+        // out of release builds — a bypass that ships is a bypass anyone can find in the binary.
+        //
+        // It bypasses the *purchase*, not the *lock*: the reveal gesture and device authentication are still
+        // required to see private content.
+        if ProcessInfo.processInfo.environment["SPLASH_UNLOCK_PREMIUM"] == "1" {
             let module = try await makeDefault(accessPolicy: AlwaysUnlockedPolicy())
             module.entitlements = store
             await store.start()
@@ -204,7 +220,7 @@ public final class AppModule: AppSession {
     }
 
     /// Late injection of the purchase-backed policy (Phase 16).
-    public func setAccessPolicy(_ policy: any OfflineAccessPolicy) {
+    public func setAccessPolicy(_ policy: any PremiumAccessPolicy) {
         accessPolicy = policy
         guard let old = offlineController else { return }
         let controller = OfflineController(
@@ -212,6 +228,9 @@ public final class AppModule: AppSession {
             onWifiOnlyChange: { UserDefaults.standard.set($0, forKey: Self.wifiOnlyKey) })
         offlineController = controller
         controller.start()
+        // Privacy is gated by the same policy, so it must be rebuilt too — otherwise it keeps asking the
+        // policy that was swapped out. Rebuilding drops `isUnlocked`, which fails safe (re-locks).
+        privacy = PrivacyController(state: privacyState, settings: settings, access: policy)
     }
 
     // MARK: - Lifecycle hooks
@@ -348,9 +367,23 @@ extension AppModule: OfflineModeSwitching {
     /// Reads the offline store directly (not `api`), so the shelf is identical online and offline.
     public func downloadedSeries() async throws -> [KomgaSeries] {
         await alignOfflineUser()
-        return try await offline.api.seriesApi
+        let hidden = privacy?.filter() ?? .disabled
+        let series = try await offline.api.seriesApi
+            .getSeriesList(
+                search: KomgaSeriesSearch(condition: hidden.combined(nil)),
+                pageRequest: KomgaPageRequest(unpaged: true))
+            .content
+        // Filtered here rather than in a view model: this reads the offline store directly, bypassing the
+        // active API, and it backs both the Downloads tab and the offline fallback shelf.
+        return hidden.visible(series)
+    }
+
+    /// Deliberately unfiltered — see `OfflineModeSwitching.seriesLibraries()`.
+    public func seriesLibraries() async -> [KomgaSeriesId: KomgaLibraryId] {
+        let series = try? await offline.api.seriesApi
             .getSeriesList(search: KomgaSeriesSearch(), pageRequest: KomgaPageRequest(unpaged: true))
             .content
+        return Dictionary(uniqueKeysWithValues: (series ?? []).map { ($0.id, $0.libraryId) })
     }
 
     public func offlineUsers() async -> [OfflineUserChoice] {

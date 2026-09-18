@@ -21,11 +21,16 @@ public final class BookViewModel {
         await self?.loadBook()
     }
 
-    init(bookId: KomgaBookId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource) {
+    /// A provider, not a snapshot: re-read per fetch so unlocking reveals the item without a rebuild.
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
+    init(bookId: KomgaBookId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
         self.bookId = bookId
         self.api = api
         self.authState = authState
         self.events = events
+        self.hiddenFilter = hiddenFilter
     }
 
     public var library: KomgaLibrary? { book.flatMap { b in authState.libraries.first { $0.id == b.libraryId } } }
@@ -68,7 +73,16 @@ public final class BookViewModel {
     func loadBook() async {
         if book == nil { state = .loading }
         do {
-            book = try await api.bookApi.getOne(bookId)
+            let loaded = try await api.bookApi.getOne(bookId)
+            // A detail screen bypasses every listing, so it has to refuse a hidden item itself — reached by
+            // a stale navigation stack, or by opening a book directly. The error is the ordinary 404 the
+            // server would give for a book that does not exist: no separate "this is private" state, which
+            // would confirm to a snooper that there is something here.
+            guard !hiddenFilter().isHidden(book: loaded) else {
+                book = nil
+                throw KomgaAPIError.httpStatus(code: 404, body: Data())
+            }
+            book = loaded
             state = .success(())
         } catch {
             state = .error(error)
@@ -109,6 +123,7 @@ struct BookDetails: View {
     let model: BookViewModel
     let navigate: (Destination) -> Void
     let onRead: (SplashBook) -> Void
+    @Environment(\.offlineController) private var offline
 
     var body: some View {
         ScrollView {
@@ -167,6 +182,9 @@ struct BookDetails: View {
             Menu {
                 Button("Mark as read") { Task { await model.markAsRead() } }
                 Button("Mark as unread") { Task { await model.markAsUnread() } }
+                HideMenuButton(
+                    target: .book(book.id), downloadedBook: book,
+                    onDeleteDownload: offline.map { controller in { controller.delete(book: book.id) } })
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
             }
@@ -202,22 +220,31 @@ public final class OneshotViewModel {
     private let authState: KomgaAuthenticationState
     private let events: KomgaEventSource
 
-    init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource) {
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
+    init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
         self.seriesId = seriesId
         self.api = api
         self.authState = authState
         self.events = events
+        self.hiddenFilter = hiddenFilter
     }
 
     public func initialize() async {
         guard state.isUninitialized else { return }
         state = .loading
         do {
+            let hidden = hiddenFilter()
+            let conditions: [BookCondition] = [.seriesId(.isEqualTo(seriesId))] + hidden.bookConditions
             let books = try await api.bookApi.getBookList(
-                search: KomgaBookSearch(condition: .allOfBooks(.seriesId(.isEqualTo(seriesId)))),
-                pageRequest: KomgaPageRequest(size: 1))
-            guard let book = books.content.first else { throw KomgaAPIError.httpStatus(code: 404, body: Data()) }
-            bookModel = BookViewModel(bookId: book.id, api: api, authState: authState, events: events)
+                search: KomgaBookSearch(condition: .allOf(conditions)), pageRequest: KomgaPageRequest(size: 1))
+            // A hidden oneshot is indistinguishable from one that does not exist — same 404, no oracle.
+            guard let book = hidden.visible(books.content).first else {
+                throw KomgaAPIError.httpStatus(code: 404, body: Data())
+            }
+            bookModel = BookViewModel(
+                bookId: book.id, api: api, authState: authState, events: events, hiddenFilter: hiddenFilter)
             state = .success(())
         } catch {
             state = .error(error)

@@ -41,13 +41,18 @@ public final class SeriesViewModel {
         await self.loadBooks(page: self.currentPage)
     }
 
+    /// A provider, not a snapshot: re-read per fetch so unlocking takes effect without rebuilding the model.
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+
     init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState,
-         settings: CommonSettingsRepository, events: KomgaEventSource) {
+         settings: CommonSettingsRepository, events: KomgaEventSource,
+         hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
         self.seriesId = seriesId
         self.api = api
         self.authState = authState
         self.settings = settings
         self.events = events
+        self.hiddenFilter = hiddenFilter
     }
 
     public var library: KomgaLibrary? { series.flatMap { s in authState.libraries.first { $0.id == s.libraryId } } }
@@ -108,11 +113,15 @@ public final class SeriesViewModel {
 
     func loadBooks(page: Int) async {
         do {
+            let hidden = hiddenFilter()
+            // `BookCondition` can exclude both libraries and whole series, so the only thing left for the
+            // client-side guard here is an individually hidden *book* — pagination stays exact otherwise.
+            let conditions: [BookCondition] = [.seriesId(.isEqualTo(seriesId))] + hidden.bookConditions
             let result = try await api.bookApi.getBookList(
-                search: KomgaBookSearch(condition: .allOfBooks(.seriesId(.isEqualTo(seriesId)))),
+                search: KomgaBookSearch(condition: .allOf(conditions)),
                 pageRequest: KomgaPageRequest(
                     pageIndex: page - 1, size: settings.value.bookPageLoadSize, sort: sort.komgaSort))
-            books = result.content
+            books = hidden.visible(result.content)
             currentPage = result.number + 1
             totalPages = max(result.totalPages, 1)
         } catch {
@@ -221,6 +230,7 @@ struct SeriesScreen: View {
                         Button("Delete downloaded books", role: .destructive) { offline.delete(series: model.seriesId) }
                     }
                 }
+                HideMenuButton(target: .series(model.seriesId))
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
             }
@@ -247,6 +257,9 @@ struct SeriesScreen: View {
         } else {
             Button("Mark as read") { Task { await model.markBookRead(book) } }
         }
+        HideMenuButton(
+            target: .book(book.id), downloadedBook: book,
+            onDeleteDownload: offline.map { controller in { controller.delete(book: book.id) } })
     }
 }
 
