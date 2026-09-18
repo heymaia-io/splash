@@ -27,6 +27,8 @@ public protocol KomgaApi: Sendable {
 
 public protocol KomgaActuatorApi: Sendable {
     func shutdown() async throws
+    /// `GET /actuator/info` — build, runtime and host details. ADMIN only; other roles get a 403.
+    func getInfo() async throws -> KomgaServerInfo
 }
 
 public protocol KomgaAnnouncementsApi: Sendable {

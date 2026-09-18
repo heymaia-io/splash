@@ -108,3 +108,35 @@ struct ModelDecodingTests {
         #expect(komelia.isLocalFileOutdated)
     }
 }
+
+@Suite("Server info (/actuator/info)")
+struct ServerInfoDecodingTests {
+    /// The real payload, taken from the fixture server's OpenAPI example.
+    @Test func decodesActuatorInfo() throws {
+        let json = #"""
+        {"git":{"branch":"master","commit":{"id":"9be980d","time":"2025-03-12T03:40:38Z"}},
+         "build":{"artifact":"komga","name":"komga","version":"1.21.2","group":"komga"},
+         "java":{"version":"23.0.2","vendor":{"name":"Eclipse Adoptium","version":"Temurin-23.0.2+7"}},
+         "os":{"name":"Linux","version":"6.8.0-57-generic","arch":"amd64"}}
+        """#
+        let info = try KomgaJSON.makeDecoder().decode(KomgaServerInfo.self, from: Data(json.utf8))
+        #expect(info.version == "1.21.2")
+        #expect(info.gitBranch == "master")
+        #expect(info.gitCommitId == "9be980d")
+        #expect(info.javaVersion == "23.0.2")
+        #expect(info.javaVendor == "Eclipse Adoptium")
+        #expect(info.osName == "Linux")
+        #expect(info.osArch == "amd64")
+    }
+
+    /// Every actuator section is optional — a server can disable any of them, and a missing section must
+    /// leave the screen blank rather than fail the whole decode.
+    @Test func toleratesMissingSections() throws {
+        let info = try KomgaJSON.makeDecoder().decode(
+            KomgaServerInfo.self, from: Data(#"{"build":{"version":"1.0.0"}}"#.utf8))
+        #expect(info.version == "1.0.0")
+        #expect(info.javaVersion == nil)
+        #expect(info.osName == nil)
+        #expect(info.gitCommitId == nil)
+    }
+}

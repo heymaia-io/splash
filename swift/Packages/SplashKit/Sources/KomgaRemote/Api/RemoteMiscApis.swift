@@ -249,6 +249,10 @@ public struct RemoteActuatorApi: KomgaActuatorApi {
     public func shutdown() async throws {
         try await http.send(http.request(.post, "actuator/shutdown"))
     }
+
+    public func getInfo() async throws -> KomgaServerInfo {
+        try await http.fetch(http.request(.get, "actuator/info"))
+    }
 }
 
 public struct RemoteAnnouncementsApi: KomgaAnnouncementsApi {

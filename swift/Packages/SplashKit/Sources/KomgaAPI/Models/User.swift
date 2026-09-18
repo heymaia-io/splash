@@ -237,3 +237,13 @@ public struct KomgaViolationErrorResponse: Codable, Hashable, Sendable {
         public var message: String
     }
 }
+
+extension KomgaAgeRestriction {
+    /// One-line form for the account screen, e.g. "Only under 16" / "Nothing under 18".
+    public var summary: String {
+        switch restriction {
+        case .allowOnly: String(localized: "Only content rated \(age) and under")
+        case .exclude: String(localized: "Excludes content rated \(age) and over")
+        }
+    }
+}

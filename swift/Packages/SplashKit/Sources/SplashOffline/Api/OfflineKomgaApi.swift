@@ -59,6 +59,10 @@ final class OfflineSSESession: KomgaSSESession {
 public struct OfflineActuatorApi: KomgaActuatorApi {
     public init() {}
     public func shutdown() async throws {}
+
+    public func getInfo() async throws -> KomgaServerInfo {
+        throw KomgaAPIError.unsupported("actuator/info")
+    }
 }
 
 public struct OfflineAnnouncementsApi: KomgaAnnouncementsApi {
