@@ -23,6 +23,14 @@ public struct SettingsView: View {
     private var isAdmin: Bool { session.authState.authenticatedUser?.isAdmin ?? false }
     private var api: any KomgaApi { session.viewModelFactory.apiProvider() }
 
+    /// Admin screens list libraries by name *and filesystem path*, which is exactly what a private
+    /// library is hiding. They stay administrable — scan, analyse, refresh — but only once the private
+    /// area is unlocked.
+    private var visibleLibraries: [KomgaLibrary] {
+        guard let privacy, !privacy.isUnlocked else { return session.authState.libraries }
+        return privacy.filter().visible(session.authState.libraries)
+    }
+
     public var body: some View {
         if isEmbedded {
             list
@@ -63,7 +71,7 @@ public struct SettingsView: View {
             }
             if isAdmin {
                 Section("Server") {
-                    NavigationLink { ServerSettingsView(api: api, libraries: session.authState.libraries) } label: {
+                    NavigationLink { ServerSettingsView(api: api, libraries: visibleLibraries) } label: {
                         Label("Server settings", systemImage: "server.rack")
                     }
                     NavigationLink { UsersView(api: api) } label: {
@@ -218,35 +226,76 @@ struct ImageReaderSettingsView: View {
 struct AccountSettingsView: View {
     let session: any AppSession
     let onLoggedOut: () -> Void
-    @State private var newPassword = ""
-    @State private var message: String?
+    @Environment(\.privacy) private var privacy
+    @State private var serverInfo: KomgaServerInfo?
+
+    private var user: KomgaUser? { session.authState.authenticatedUser }
+    private var isAdmin: Bool { user?.isAdmin ?? false }
 
     var body: some View {
         Form {
-            if let user = session.authState.authenticatedUser {
-                Section {
+            if let user {
+                Section("Account") {
                     LabeledContent("Email", value: user.email)
-                    LabeledContent("Server", value: session.settings.value.serverUrl)
                     LabeledContent("Roles", value: user.roles.sorted().joined(separator: ", "))
-                }
-            }
-            Section("Change password") {
-                SecureField("New password", text: $newPassword)
-                    .textContentType(.newPassword)
-                Button("Update password") {
-                    Task {
-                        do {
-                            try await session.viewModelFactory.apiProvider().userApi.updateMyPassword(newPassword)
-                            newPassword = ""
-                            message = String(localized: "Password updated")
-                        } catch {
-                            message = error.localizedDescription
-                        }
+                    if let restriction = user.ageRestriction {
+                        LabeledContent("Age restriction", value: restriction.summary)
                     }
                 }
-                .disabled(newPassword.count < 1)
-                if let message { Text(message).font(.footnote) }
+
+                Section {
+                    LabeledContent("Libraries") {
+                        Text(libraryAccess(user))
+                            .multilineTextAlignment(.trailing)
+                    }
+                    if !user.labelsAllow.isEmpty {
+                        LabeledContent("Only labels", value: user.labelsAllow.sorted().joined(separator: ", "))
+                    }
+                    if !user.labelsExclude.isEmpty {
+                        LabeledContent("Excluded labels", value: user.labelsExclude.sorted().joined(separator: ", "))
+                    }
+                } header: {
+                    Text("Access")
+                } footer: {
+                    Text("What this account is allowed to see. Only a server administrator can change it.")
+                }
             }
+
+            Section {
+                LabeledContent("Address", value: session.settings.value.serverUrl)
+                if let serverInfo {
+                    if let version = serverInfo.version { LabeledContent("Komga", value: version) }
+                    if let commit = serverInfo.gitCommitId {
+                        LabeledContent("Build", value: [serverInfo.gitBranch, commit].compactMap(\.self).joined(separator: " · "))
+                    }
+                    if let java = serverInfo.javaVersion {
+                        LabeledContent("Java", value: [java, serverInfo.javaVendor].compactMap(\.self).joined(separator: " · "))
+                    }
+                    if let os = serverInfo.osName {
+                        LabeledContent("Host", value: [os, serverInfo.osVersion, serverInfo.osArch].compactMap(\.self).joined(separator: " · "))
+                    }
+                }
+            } header: {
+                Text("Server")
+            } footer: {
+                // Komga only exposes /actuator/info to admins, so there is simply nothing more to show
+                // for a regular account — better to say so than to leave an unexplained gap.
+                Text(isAdmin
+                     ? "Reported by your Komga server."
+                     : "Your Komga server only reports its version to administrators.")
+            }
+
+            Section {
+                // Passwords are deliberately not changeable here: Komga's own web UI already does it
+                // properly, and doing it safely needs current-password re-entry and confirmation that a
+                // reading app has no business owning.
+                Link(destination: URL(string: session.settings.value.serverUrl) ?? URL(string: "https://komga.org")!) {
+                    Label("Manage this account on the server", systemImage: "safari")
+                }
+            } footer: {
+                Text("Password changes and account settings live in the Komga web interface.")
+            }
+
             Section {
                 Button("Log out", role: .destructive) {
                     Task {
@@ -257,6 +306,30 @@ struct AccountSettingsView: View {
             }
         }
         .navigationTitle("My account")
+        .task {
+            guard isAdmin, serverInfo == nil else { return }
+            serverInfo = try? await session.viewModelFactory.apiProvider().actuatorApi.getInfo()
+        }
+    }
+
+    /// Names every library this account may see — so it has to omit private ones while locked. It says
+    /// when it has omitted something rather than silently under-reporting the account's real access.
+    private func libraryAccess(_ user: KomgaUser) -> String {
+        let all = session.authState.libraries
+        let shown = (privacy?.isUnlocked ?? true) ? all : (privacy?.filter().visible(all) ?? all)
+        let omitted = all.count != shown.count
+
+        guard !user.sharedAllLibraries else {
+            return omitted
+                ? String(localized: "All libraries (some hidden)")
+                : String(localized: "All libraries")
+        }
+        let names = shown
+            .filter { user.sharedLibrariesIds.contains($0.id) }
+            .map(\.name)
+            .sorted()
+        if names.isEmpty { return omitted ? String(localized: "Hidden") : String(localized: "None") }
+        return names.joined(separator: ", ") + (omitted ? String(localized: " (some hidden)") : "")
     }
 }
 
@@ -344,12 +417,21 @@ struct AuthenticationActivityView: View {
 /// `MediaAnalysisViewModel` — books whose media is in ERROR/UNSUPPORTED state.
 struct MediaAnalysisView: View {
     let api: any KomgaApi
+    @Environment(\.privacy) private var privacy
+
     var body: some View {
+        // Server-wide, and it prints each book's name and full filesystem path — so it needs the same
+        // two-pass treatment as every other listing: conditions where Komga supports them, then the
+        // client-side guard for what it cannot express.
+        let hidden = (privacy?.isUnlocked ?? false) ? HiddenContentFilter.disabled : (privacy?.filter() ?? .disabled)
         RemoteListView(title: "Media analysis", load: {
-            try await api.bookApi.getBookList(
-                condition: .anyOfBooks(.mediaStatus(.isEqualTo(.error)), .mediaStatus(.isEqualTo(.unsupported))),
+            let broken = BookCondition.anyOfBooks(
+                .mediaStatus(.isEqualTo(.error)), .mediaStatus(.isEqualTo(.unsupported)))
+            let page = try await api.bookApi.getBookList(
+                condition: hidden.bookConditions.isEmpty ? broken : .allOf([broken] + hidden.bookConditions),
                 pageRequest: KomgaPageRequest(size: 500)
             ).content
+            return hidden.visible(page)
         }) { book in
             VStack(alignment: .leading) {
                 Text(book.name)
@@ -456,8 +538,12 @@ struct AboutView: View {
     /// developer-options idiom, chosen because it is not something anyone reaches by accident.
     @State private var versionTaps = 0
     private static let tapsToReveal = 7
+    /// Stay silent for the first few taps, so the row gives nothing away to someone who merely prods it.
+    private static let tapsBeforeCounting = 3
 
     private var didReveal: Bool { versionTaps >= Self.tapsToReveal }
+    private var remainingTaps: Int { Self.tapsToReveal - versionTaps }
+    private var showsCounter: Bool { versionTaps >= Self.tapsBeforeCounting && !didReveal }
 
     var body: some View {
         Form {
@@ -465,11 +551,21 @@ struct AboutView: View {
                 .contentShape(.rect)
                 .onTapGesture {
                     guard !didReveal else { return }
-                    versionTaps += 1
+                    withAnimation(.snappy) { versionTaps += 1 }
                     #if os(iOS)
-                    if didReveal { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                    if didReveal {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    } else if showsCounter {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    }
                     #endif
                 }
+            if showsCounter {
+                Text("^[\(remainingTaps) more tap](inflect: true) to continue")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .transition(.opacity)
+            }
             if didReveal {
                 NavigationLink { PrivacyHelpView() } label: {
                     Label("Private libraries", systemImage: "lock.doc")

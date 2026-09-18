@@ -77,7 +77,7 @@ public struct MainShellView<Content: View>: View {
     public var body: some View {
         NavigationStack(path: Bindable(model.navigator).stack) {
             rootScreen
-                .navigationDestination(for: Destination.self) { content($0) }
+                .navigationDestination(for: Destination.self) { pushedScreen($0) }
         }
         .id(model.navigator.root)  // replaceAll => fresh stack, like Voyager
         .onChange(of: privacy?.isUnlocked ?? false) { _, isUnlocked in
@@ -110,6 +110,17 @@ public struct MainShellView<Content: View>: View {
         privacy?.isUnlocked == true
             ? [.home, .library, .downloads, .privateArea, .settings]
             : [.home, .library, .downloads, .settings]
+    }
+
+    /// Pushed screens normally have no search field — you search from a tab root. The private area is
+    /// the exception: browsing into a private library or series and losing the ability to search it is
+    /// the one place that gap is felt, because private content has nowhere else to be found.
+    @ViewBuilder private func pushedScreen(_ destination: Destination) -> some View {
+        content(destination)
+            .modifier(GlobalSearchField(
+                query: $model.searchQuery,
+                isEnabled: isPrivateContext && !destination.isPrivateSearch,
+                isPrivate: true, submit: submitSearch))
     }
 
     private var tabBinding: Binding<MainTab> {

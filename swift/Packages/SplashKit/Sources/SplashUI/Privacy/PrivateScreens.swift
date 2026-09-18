@@ -19,17 +19,53 @@ public final class PrivateCatalogViewModel {
     private let api: any KomgaApi
     private let authState: KomgaAuthenticationState
     private let hiddenFilter: @MainActor () -> HiddenContentFilter
+    private let hiddenChanges: () -> AsyncStream<HiddenContent>
+    private var hiddenTask: Task<Void, Never>?
 
     init(
         api: any KomgaApi, authState: KomgaAuthenticationState,
-        hiddenFilter: @escaping @MainActor () -> HiddenContentFilter
+        hiddenFilter: @escaping @MainActor () -> HiddenContentFilter,
+        hiddenChanges: @escaping () -> AsyncStream<HiddenContent>
     ) {
         self.api = api
         self.authState = authState
         self.hiddenFilter = hiddenFilter
+        self.hiddenChanges = hiddenChanges
     }
 
     public var isEmpty: Bool { libraries.isEmpty && series.isEmpty && books.isEmpty }
+
+    /// Watches the stored set so unhiding something from this very screen removes the card straight away,
+    /// instead of leaving it there until the tab is rebuilt.
+    public func start() {
+        guard hiddenTask == nil else { return }
+        hiddenTask = Task { [weak self] in
+            var isFirst = true  // `values()` replays the current value
+            for await hidden in self?.hiddenChanges() ?? .init(unfolding: { nil }) {
+                if isFirst { isFirst = false; continue }
+                await self?.apply(hidden)
+            }
+        }
+    }
+
+    public func stop() {
+        hiddenTask?.cancel()
+        hiddenTask = nil
+    }
+
+    /// Drops what is no longer private without a round trip — the card disappears on the same frame as the
+    /// tap — and only goes back to the server when something newly private needs resolving.
+    private func apply(_ hidden: HiddenContent) async {
+        libraries.removeAll { !hidden.libraries.contains($0.id) }
+        series.removeAll { !hidden.series.contains($0.id) }
+        books.removeAll { !hidden.books.contains($0.id) }
+
+        let needsSeries = !hidden.series.subtracting(series.map(\.id)).isEmpty
+        let needsBooks = !hidden.books.subtracting(books.map(\.id)).isEmpty
+        let needsLibraries = libraries.count != hidden.libraries.count
+        guard needsSeries || needsBooks || needsLibraries else { return }
+        await load()
+    }
 
     public func load() async {
         let hidden = hiddenFilter().hidden
@@ -71,137 +107,223 @@ public final class PrivateCatalogViewModel {
     }
 }
 
-/// The private area's root: everything the user marked private, and nothing else.
+/// The private area's root. Reads like Home — the same shelves, the same covers — because private
+/// content is a mix of whole libraries, whole series and single books, and a flat grid buried the
+/// difference. Hidden libraries stay a row list above the shelves: a carousel cannot represent a
+/// library, and it is the one part that scales through real server-side paging.
 struct PrivateHomeScreen: View {
-    @State var model: PrivateCatalogViewModel
+    @State var model: PrivateHomeViewModel
     let cardWidth: CGFloat
     let navigate: (Destination) -> Void
-    @Environment(\.privacy) private var privacy
 
     var body: some View {
         Group {
-            if model.state.isUninitialized || (model.state.isLoading && model.isEmpty) {
+            switch model.state {
+            case .uninitialized:
                 ProgressView()
-            } else if model.isEmpty {
-                ContentUnavailableView(
-                    "Nothing is private yet", systemImage: "eye.slash",
-                    description: Text("Use Hide on a library, a series or a book to keep it here."))
-            } else {
-                content
+            case .error(let error) where model.isEmpty:
+                ErrorView(error: error) { Task { await model.load() } }
+            default:
+                if model.isEmpty, !model.state.isLoading {
+                    ContentUnavailableView(
+                        "Nothing is private yet", systemImage: "eye.slash",
+                        description: Text("Use Hide on a library, a series or a book to keep it here."))
+                } else {
+                    content
+                }
             }
         }
         .navigationTitle("Private")
-        .task { if model.state.isUninitialized { await model.load() } }
+        .task {
+            model.start()
+            if model.state.isUninitialized { await model.load() }
+        }
+        .onDisappear { model.stop() }
         .refreshable { await model.load() }
     }
 
     private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                if !model.libraries.isEmpty {
-                    section("Libraries") {
-                        ForEach(model.libraries) { library in
-                            Button { navigate(.privateLibrary(library.id)) } label: {
-                                Label(library.name, systemImage: "books.vertical")
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal)
-                                    .padding(.vertical, 8)
-                                    .contentShape(.rect)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu { HideMenuButton(target: .library(library.id)) }
-                        }
+        VStack(spacing: 0) {
+            if !model.libraries.isEmpty { librariesBar }
+            SectionCarousels(
+                sections: model.sections, activeFilter: $model.activeFilter, cardWidth: cardWidth,
+                isLoading: model.state.isLoading, navigate: navigate,
+                cardMenu: { destination in
+                    switch destination {
+                    case .series(let id): HideMenuButton(target: .series(id))
+                    case .book(let id): HideMenuButton(target: .book(id, isDownloaded: false))
+                    default: EmptyView()
                     }
-                }
-                if !model.series.isEmpty {
-                    section("Series") {
-                        CardGrid(items: model.series, cardWidth: cardWidth) { item in
-                            Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
-                                SeriesCard(series: item)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu { HideMenuButton(target: .series(item.id)) }
-                        }
-                    }
-                }
-                if !model.books.isEmpty {
-                    section("Books") {
-                        CardGrid(items: model.books, cardWidth: cardWidth) { book in
-                            Button { navigate(.book(book.id)) } label: {
-                                BookCard(book: book, showSeries: true)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                HideMenuButton(target: .book(book.id, isDownloaded: book.downloaded))
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.vertical)
+                })
         }
     }
 
-    @ViewBuilder private func section(
-        _ title: LocalizedStringKey, @ViewBuilder body: () -> some View
-    ) -> some View {
+    private var librariesBar: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.title3.bold()).padding(.horizontal)
-            body()
+            Text("Libraries").font(.title3.bold()).padding(.horizontal)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(model.libraries) { library in
+                        Button { navigate(.privateLibrary(library.id)) } label: {
+                            Label(library.name, systemImage: "books.vertical")
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .contextMenu { HideMenuButton(target: .library(library.id)) }
+                    }
+                }
+                .padding(.horizontal)
+            }
         }
+        .padding(.top, 12)
     }
 }
 
 /// Search scoped to the private set.
 ///
-/// Komga cannot scope a query to a list of ids, so hidden series and books are matched in memory against
-/// the resolved catalog. Hidden *libraries* are a real server query, because `.libraryId(.isEqualTo)` does
-/// exist — that is why a private library scales and a long list of individually hidden series does not.
+/// Two halves, because Komga can express only one of them. A server query with the `.onlyHidden`
+/// conditions reaches everything inside a hidden **library** and every book of a hidden **series** —
+/// the part that scales. An individually hidden series or book has no id condition, so it is matched
+/// in memory against the resolved catalog. Without the first half, a user whose private content is one
+/// whole library got no results at all.
+@MainActor
+@Observable
+public final class PrivateSearchViewModel {
+    public var query: String
+    public private(set) var series: [KomgaSeries] = []
+    public private(set) var books: [SplashBook] = []
+    public private(set) var state: LoadState<Void> = .uninitialized
+
+    private let api: any KomgaApi
+    private let catalog: PrivateCatalogViewModel
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
+    private var searchTask: Task<Void, Never>?
+
+    init(
+        api: any KomgaApi, catalog: PrivateCatalogViewModel, initialQuery: String,
+        hiddenFilter: @escaping @MainActor () -> HiddenContentFilter
+    ) {
+        self.api = api
+        self.catalog = catalog
+        self.query = initialQuery
+        self.hiddenFilter = hiddenFilter
+    }
+
+    public func onQueryChange() {
+        searchTask?.cancel()
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            await search()
+        }
+    }
+
+    public func search() async {
+        let term = query.trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty else {
+            series = []
+            books = []
+            state = .uninitialized
+            return
+        }
+        state = .loading
+        let hidden = hiddenFilter()
+        if catalog.state.isUninitialized { await catalog.load() }
+
+        // In-memory half: the only way to reach an individually hidden book.
+        let localSeries = catalog.series.filter { $0.matchesSearch(term) }
+        let localBooks = catalog.books.filter { $0.matchesSearch(term) }
+
+        do {
+            let page = KomgaPageRequest(size: 50)
+            async let remoteSeries = api.seriesApi.getSeriesList(
+                search: KomgaSeriesSearch(
+                    condition: hidden.seriesConditions.isEmpty ? nil : .allOf(hidden.seriesConditions),
+                    fullTextSearch: term),
+                pageRequest: page)
+            async let remoteBooks = api.bookApi.getBookList(
+                search: KomgaBookSearch(
+                    condition: hidden.bookConditions.isEmpty ? nil : .allOf(hidden.bookConditions),
+                    fullTextSearch: term),
+                pageRequest: page)
+            // `visible(_:)` still runs: an `.onlyHidden` condition set that is empty would otherwise
+            // return the whole library.
+            series = Self.merge(localSeries, hidden.visible(try await remoteSeries.content))
+            books = Self.merge(localBooks, hidden.visible(try await remoteBooks.content))
+            state = .success(())
+        } catch {
+            guard !Task.isCancelled else { return }
+            // The server half failing still leaves the catalog matches worth showing.
+            series = localSeries
+            books = localBooks
+            state = (localSeries.isEmpty && localBooks.isEmpty) ? .error(error) : .success(())
+        }
+    }
+
+    private static func merge<T: Identifiable>(_ local: [T], _ remote: [T]) -> [T] {
+        var seen = Set(local.map(\.id))
+        return local + remote.filter { seen.insert($0.id).inserted }
+    }
+}
+
+extension KomgaSeries {
+    fileprivate func matchesSearch(_ term: String) -> Bool {
+        metadata.title.localizedStandardContains(term) || name.localizedStandardContains(term)
+    }
+}
+
+extension SplashBook {
+    fileprivate func matchesSearch(_ term: String) -> Bool {
+        book.metadata.title.localizedStandardContains(term)
+            || book.seriesTitle.localizedStandardContains(term)
+    }
+}
+
 struct PrivateSearchScreen: View {
-    @State var model: PrivateCatalogViewModel
-    let query: String
+    @State var model: PrivateSearchViewModel
     let cardWidth: CGFloat
     let navigate: (Destination) -> Void
 
-    private var matchedSeries: [KomgaSeries] {
-        model.series.filter { $0.metadata.title.localizedStandardContains(query) || $0.name.localizedStandardContains(query) }
-    }
-
-    private var matchedBooks: [SplashBook] {
-        model.books.filter {
-            $0.metadata.title.localizedStandardContains(query) || $0.seriesTitle.localizedStandardContains(query)
-        }
-    }
-
     var body: some View {
         ScrollView {
-            if model.state.isLoading {
+            switch model.state {
+            case .loading:
                 ProgressView().padding()
-            } else if matchedSeries.isEmpty, matchedBooks.isEmpty {
-                ContentUnavailableView.search(text: query)
-            } else {
-                VStack(alignment: .leading, spacing: 24) {
-                    if !matchedSeries.isEmpty {
-                        CardGrid(items: matchedSeries, cardWidth: cardWidth) { item in
-                            Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
-                                SeriesCard(series: item)
+            case .error(let error):
+                ErrorView(error: error) { Task { await model.search() } }
+            default:
+                if model.series.isEmpty, model.books.isEmpty {
+                    ContentUnavailableView.search(text: model.query)
+                } else {
+                    VStack(alignment: .leading, spacing: 24) {
+                        if !model.series.isEmpty {
+                            CardGrid(items: model.series, cardWidth: cardWidth) { item in
+                                Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
+                                    SeriesCard(series: item)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu { HideMenuButton(target: .series(item.id)) }
                             }
-                            .buttonStyle(.plain)
+                        }
+                        if !model.books.isEmpty {
+                            CardGrid(items: model.books, cardWidth: cardWidth) { book in
+                                Button { navigate(.book(book.id)) } label: {
+                                    BookCard(book: book, showSeries: true)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu { HideMenuButton(target: .book(book.id, isDownloaded: book.downloaded)) }
+                            }
                         }
                     }
-                    if !matchedBooks.isEmpty {
-                        CardGrid(items: matchedBooks, cardWidth: cardWidth) { book in
-                            Button { navigate(.book(book.id)) } label: {
-                                BookCard(book: book, showSeries: true)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                    .padding(.vertical)
                 }
-                .padding(.vertical)
             }
         }
         .navigationTitle("Private results")
-        .task { if model.state.isUninitialized { await model.load() } }
+        // Its own field, so results can be refined in place — matching `SearchScreen`.
+        .searchable(text: $model.query, prompt: Text("Search private"))
+        .onChange(of: model.query) { model.onQueryChange() }
+        .task { if model.state.isUninitialized, !model.query.isEmpty { await model.search() } }
     }
 }

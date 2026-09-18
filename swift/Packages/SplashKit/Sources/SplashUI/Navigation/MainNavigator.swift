@@ -22,6 +22,11 @@ public enum Destination: Hashable, Sendable {
 }
 
 extension Destination {
+    /// True for the private results screen, which owns the field that refines its own results.
+    public var isPrivateSearch: Bool {
+        if case .privateSearch = self { true } else { false }
+    }
+
     /// Whether this destination belongs to the private area, so the shell can tear it down on re-lock.
     public var isPrivate: Bool {
         switch self {

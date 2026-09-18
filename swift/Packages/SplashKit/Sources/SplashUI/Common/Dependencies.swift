@@ -118,8 +118,23 @@ public final class ViewModelFactory {
         ReaderViewModel(bookId: bookId, api: api ?? self.api, settings: imageReaderSettings, siblings: siblings)
     }
 
+    func privateHomeViewModel() -> PrivateHomeViewModel {
+        PrivateHomeViewModel(
+            api: api, filters: homeFilters, authState: authState, catalog: privateCatalogViewModel(),
+            hiddenFilter: hiddenFilter(.onlyHidden),
+            hiddenChanges: { [hiddenContent] in hiddenContent.values() })
+    }
+
+    func privateSearchViewModel(query: String?) -> PrivateSearchViewModel {
+        PrivateSearchViewModel(
+            api: api, catalog: privateCatalogViewModel(), initialQuery: query ?? "",
+            hiddenFilter: hiddenFilter(.onlyHidden))
+    }
+
     func privateCatalogViewModel() -> PrivateCatalogViewModel {
-        PrivateCatalogViewModel(api: api, authState: authState, hiddenFilter: hiddenFilter(.onlyHidden))
+        PrivateCatalogViewModel(
+            api: api, authState: authState, hiddenFilter: hiddenFilter(.onlyHidden),
+            hiddenChanges: { [hiddenContent] in hiddenContent.values() })
     }
 
     func searchViewModel(query: String?, hiddenMode: HiddenContentMode = .excludeHidden) -> SearchViewModel {

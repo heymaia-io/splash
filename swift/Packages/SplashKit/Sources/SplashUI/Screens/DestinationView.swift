@@ -47,7 +47,7 @@ struct DestinationView: View {
         // Defence in depth: these render nothing at all if the area has re-locked under us. The shell also
         // unwinds the stack on lock, so this should be unreachable — which is exactly why it is cheap.
         case .privateHome where isUnlocked:
-            PrivateHomeScreen(model: factory.privateCatalogViewModel(), cardWidth: cardWidth, navigate: navigate)
+            PrivateHomeScreen(model: factory.privateHomeViewModel(), cardWidth: cardWidth, navigate: navigate)
         case .privateLibrary(let id) where isUnlocked:
             LibraryScreen(
                 model: factory.libraryViewModel(libraryId: id, hiddenMode: .onlyHidden), navigate: navigate,
@@ -55,7 +55,7 @@ struct DestinationView: View {
                 .id(id)
         case .privateSearch(let query) where isUnlocked:
             PrivateSearchScreen(
-                model: factory.privateCatalogViewModel(), query: query ?? "", cardWidth: cardWidth,
+                model: factory.privateSearchViewModel(query: query), cardWidth: cardWidth,
                 navigate: navigate)
         case .privateHome, .privateLibrary, .privateSearch:
             EmptyView()

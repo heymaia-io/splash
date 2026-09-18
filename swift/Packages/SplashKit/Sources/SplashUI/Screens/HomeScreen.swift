@@ -180,72 +180,9 @@ struct HomeScreen: View {
         .refreshable { await model.load() }
     }
 
-    private var visibleSections: [HomeViewModel.Section] {
-        let nonEmpty = model.sections.filter { !$0.isEmpty }
-        guard model.activeFilter != 0 else { return nonEmpty }
-        return nonEmpty.filter { $0.filter.order == model.activeFilter }
-    }
-
     private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                filterChips
-                if visibleSections.isEmpty, !model.state.isLoading {
-                    ContentUnavailableView("Nothing to show", systemImage: "books.vertical")
-                }
-                ForEach(visibleSections) { section in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(section.filter.label).font(.title3.bold()).padding(.horizontal)
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(alignment: .top, spacing: 12) {
-                                sectionCards(section)
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-                }
-            }
-            .padding(.vertical)
-        }
-        .overlay(alignment: .top) {
-            if model.state.isLoading { ProgressView().padding() }
-        }
-    }
-
-    @ViewBuilder private func sectionCards(_ section: HomeViewModel.Section) -> some View {
-        switch section {
-        case .series(_, let series):
-            ForEach(series) { item in
-                Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
-                    SeriesCard(series: item).frame(width: cardWidth)
-                }
-                .buttonStyle(.plain)
-            }
-        case .books(_, let books):
-            ForEach(books) { book in
-                Button { navigate(book.oneshot ? .oneshot(book.seriesId) : .book(book.id)) } label: {
-                    BookCard(book: book, showSeries: true).frame(width: cardWidth)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack {
-                chip(label: String(localized: "All"), tag: 0)
-                ForEach(model.sections.filter { !$0.isEmpty }) { section in
-                    chip(label: section.filter.label, tag: section.filter.order)
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-
-    private func chip(label: String, tag: Int) -> some View {
-        Button(label) { model.activeFilter = tag }
-            .buttonStyle(.bordered)
-            .tint(model.activeFilter == tag ? .accentColor : .secondary)
+        SectionCarousels(
+            sections: model.sections, activeFilter: $model.activeFilter, cardWidth: cardWidth,
+            isLoading: model.state.isLoading, navigate: navigate)
     }
 }

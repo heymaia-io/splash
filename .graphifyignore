@@ -1,0 +1,8 @@
+# The Kotlin/Compose Multiplatform source is the upstream Komelia app, kept for
+# reference while the iOS client is ported. Excluded from the knowledge graph so
+# the graph describes the code actually being worked on.
+kotlin/
+
+# Third-party licence texts bundled as app resources for the attribution screen.
+# They are legal boilerplate, not knowledge about this project.
+LICENSE-*.txt
