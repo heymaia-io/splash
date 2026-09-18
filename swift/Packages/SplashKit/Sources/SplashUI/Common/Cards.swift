@@ -175,23 +175,68 @@ struct PaginationBar: View {
     let totalPages: Int
     let onPageChange: (Int) -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    /// One slot in the bar: either a page you can tap, or a run of pages collapsed behind an ellipsis.
+    enum Item: Hashable {
+        case page(Int)
+        case gap(ClosedRange<Int>)
+    }
+
     var body: some View {
         if totalPages > 1 {
-            HStack(spacing: 16) {
+            HStack(spacing: 6) {
                 Button { onPageChange(currentPage - 1) } label: { Image(systemName: "chevron.left") }
                     .disabled(currentPage <= 1)
-                Menu("\(currentPage) / \(totalPages)") {
-                    ForEach(1...totalPages, id: \.self) { page in
+
+                ForEach(Self.items(current: currentPage, total: totalPages, window: window), id: \.self) { item in
+                    switch item {
+                    case .page(let page):
                         Button("\(page)") { onPageChange(page) }
+                            .buttonStyle(.bordered)
+                            .tint(page == currentPage ? .accentColor : .secondary)
+                            .fontWeight(page == currentPage ? .semibold : .regular)
+                            .accessibilityAddTraits(page == currentPage ? .isSelected : [])
+                    case .gap(let range):
+                        // The skipped run is still reachable — two taps to any page, never a dead "…".
+                        Menu("…") {
+                            ForEach(Array(range), id: \.self) { page in
+                                Button("\(page)") { onPageChange(page) }
+                            }
+                        }
+                        .menuStyle(.button)
+                        .buttonStyle(.bordered)
+                        .tint(.secondary)
+                        .accessibilityLabel("More pages")
                     }
                 }
-                .monospacedDigit()
+
                 Button { onPageChange(currentPage + 1) } label: { Image(systemName: "chevron.right") }
                     .disabled(currentPage >= totalPages)
             }
+            .monospacedDigit()
             .buttonStyle(.bordered)
             .padding()
         }
+    }
+
+    /// How many pages to show either side of the current one. A phone cannot fit the wider window.
+    private var window: Int { sizeClass == .compact ? 1 : 2 }
+
+    /// The first and last page are always reachable in one tap; everything between them collapses into
+    /// at most two ellipsis menus, so the bar has a fixed maximum width however deep the library is.
+    static func items(current: Int, total: Int, window: Int) -> [Item] {
+        guard total > 1 else { return [.page(1)] }
+        var items: [Item] = [.page(1)]
+        let lower = max(2, current - window)
+        let upper = min(total - 1, current + window)
+
+        if lower > 2 { items.append(.gap(2...(lower - 1))) }
+        if lower <= upper { items.append(contentsOf: (lower...upper).map(Item.page)) }
+        if upper < total - 1 { items.append(.gap((upper + 1)...(total - 1))) }
+
+        items.append(.page(total))
+        return items
     }
 }
 
