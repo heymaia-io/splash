@@ -74,6 +74,7 @@ struct CountBadge: View {
 /// `SeriesItemCard.kt`
 struct SeriesCard: View {
     let series: KomgaSeries
+    @Environment(\.privacy) private var privacy
 
     var body: some View {
         ItemCard(
@@ -82,7 +83,30 @@ struct SeriesCard: View {
             subtitle: series.oneshot ? String(localized: "Oneshot")
                 : String(localized: "\(series.booksCount) books")
         ) {
-            if series.booksUnreadCount > 0, !series.oneshot { CountBadge(count: series.booksUnreadCount) }
+            HStack(spacing: 4) {
+                PrivateBadge(isPrivate: privacy?.isHidden(seriesId: series.id) == true)
+                if series.booksUnreadCount > 0, !series.oneshot { CountBadge(count: series.booksUnreadCount) }
+            }
+        }
+    }
+}
+
+/// Marks an item that is only on screen because the private area is unlocked.
+///
+/// Without it there is no way to tell a private item from an ordinary one once unlocked — the whole
+/// point of revealing content in place is that it looks normal, which is also the risk.
+struct PrivateBadge: View {
+    let isPrivate: Bool
+    @Environment(\.privacy) private var privacy
+
+    var body: some View {
+        if isPrivate, privacy?.isUnlocked == true {
+            Image(systemName: "lock.fill")
+                .font(.caption2)
+                .foregroundStyle(.white)
+                .padding(3)
+                .background(Circle().fill(.black.opacity(0.55)))
+                .accessibilityLabel("Private")
         }
     }
 }
@@ -91,6 +115,7 @@ struct SeriesCard: View {
 struct BookCard: View {
     let book: SplashBook
     var showSeries = false
+    @Environment(\.privacy) private var privacy
 
     var body: some View {
         ItemCard(
@@ -99,6 +124,8 @@ struct BookCard: View {
             subtitle: showSeries ? book.metadata.title : String(localized: "\(book.media.pagesCount) pages")
         ) {
             HStack(spacing: 4) {
+                PrivateBadge(isPrivate: privacy?.isHidden(bookId: book.id) == true
+                    || privacy?.isHidden(seriesId: book.seriesId) == true)
                 if book.downloaded {
                     Image(systemName: book.isLocalFileOutdated ? "arrow.down.circle.dotted" : "arrow.down.circle.fill")
                         .foregroundStyle(.white, .green)

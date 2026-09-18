@@ -97,31 +97,7 @@ import Testing
         #expect(!filter.isHidden(series: Self.s1))
     }
 
-    // MARK: onlyHidden is the exact complement
 
-    @Test func onlyHiddenIsTheComplementOfExcludeHidden() {
-        let hidden = Self.hiding(libraries: ["lib-b"], series: ["s2"], books: ["b1"])
-        let exclude = HiddenContentFilter(hidden: hidden, mode: .excludeHidden)
-        let only = HiddenContentFilter(hidden: hidden, mode: .onlyHidden)
-
-        let allSeries = [Self.s1, Self.s2, Self.s3]
-        let allBooks = [Self.b1, Self.b2, Self.b3]
-        let allLibraries = [Self.libA, Self.libB]
-
-        #expect(Set(exclude.visible(allSeries) + only.visible(allSeries)) == Set(allSeries))
-        #expect(Set(exclude.visible(allSeries)).isDisjoint(with: Set(only.visible(allSeries))))
-        #expect(Set(exclude.visible(allBooks) + only.visible(allBooks)) == Set(allBooks))
-        #expect(Set(exclude.visible(allLibraries) + only.visible(allLibraries)) == Set(allLibraries))
-
-        #expect(only.visible(allLibraries) == [Self.libB])
-        #expect(exclude.visible(allSeries) == [Self.s1])
-        #expect(only.visible(allBooks).map(\.id) == [Self.b1.id, Self.b2.id, Self.b3.id])
-    }
-
-    @Test func onlyHiddenIsNeverANoop() {
-        // The private area must not be short-circuited as "nothing to do" when nothing is hidden yet.
-        #expect(!HiddenContentFilter(hidden: HiddenContent(), mode: .onlyHidden).isNoop)
-    }
 
     // MARK: Server-side conditions
 
@@ -144,10 +120,6 @@ import Testing
         #expect(filter.bookConditions.isEmpty)
     }
 
-    @Test func onlyHiddenScopesToHiddenLibraries() {
-        let filter = HiddenContentFilter(hidden: Self.hiding(libraries: ["lib-b"]), mode: .onlyHidden)
-        #expect(filter.seriesConditions == [.anyOf([.libraryId(.isEqualTo(KomgaLibraryId("lib-b")))])])
-    }
 
     // MARK: Allow-list
 
@@ -163,10 +135,6 @@ import Testing
         #expect(seriesOnly.libraryAllowList(from: libraries) == nil)
     }
 
-    @Test func onlyHiddenAllowListIsJustTheHiddenLibraries() {
-        let filter = HiddenContentFilter(hidden: Self.hiding(libraries: ["lib-b"]), mode: .onlyHidden)
-        #expect(filter.libraryAllowList(from: [Self.libA, Self.libB]) == [Self.libB.id])
-    }
 
     // MARK: Count correction
 

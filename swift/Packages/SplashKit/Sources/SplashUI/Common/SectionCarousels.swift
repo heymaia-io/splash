@@ -2,16 +2,14 @@ import SplashCore
 import KomgaAPI
 import SwiftUI
 
-/// Home's shelf layout — filter chips over horizontal cover carousels — shared with the private area so
-/// both read the same way. Extracted from `HomeScreen`, which is now its plainest caller.
-struct SectionCarousels<CardMenu: View>: View {
+/// Home's shelf layout: filter chips over horizontal cover carousels. Extracted from `HomeScreen` when
+/// a second caller existed; kept afterwards because the separation reads better than the inline version.
+struct SectionCarousels: View {
     let sections: [HomeViewModel.Section]
     @Binding var activeFilter: Int
     let cardWidth: CGFloat
     let isLoading: Bool
     let navigate: (Destination) -> Void
-    /// Extra per-card menu — the private area hangs "Unhide" here; Home passes nothing.
-    @ViewBuilder var cardMenu: (Destination) -> CardMenu
 
     private var visibleSections: [HomeViewModel.Section] {
         let nonEmpty = sections.filter { !$0.isEmpty }
@@ -54,7 +52,6 @@ struct SectionCarousels<CardMenu: View>: View {
                     SeriesCard(series: item).frame(width: cardWidth)
                 }
                 .buttonStyle(.plain)
-                .contextMenu { cardMenu(.series(item.id)) }
             }
         case .books(_, let books):
             ForEach(books) { book in
@@ -63,7 +60,6 @@ struct SectionCarousels<CardMenu: View>: View {
                     BookCard(book: book, showSeries: true).frame(width: cardWidth)
                 }
                 .buttonStyle(.plain)
-                .contextMenu { cardMenu(.book(book.id)) }
             }
         }
     }
@@ -87,13 +83,3 @@ struct SectionCarousels<CardMenu: View>: View {
     }
 }
 
-extension SectionCarousels where CardMenu == EmptyView {
-    init(
-        sections: [HomeViewModel.Section], activeFilter: Binding<Int>, cardWidth: CGFloat,
-        isLoading: Bool, navigate: @escaping (Destination) -> Void
-    ) {
-        self.init(
-            sections: sections, activeFilter: activeFilter, cardWidth: cardWidth, isLoading: isLoading,
-            navigate: navigate, cardMenu: { _ in EmptyView() })
-    }
-}

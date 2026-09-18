@@ -78,31 +78,20 @@ import Foundation
 
 @MainActor
 @Suite struct PrivacyNavigationTests {
-    @Test func privateDestinationsAreRecognised() {
-        #expect(Destination.privateHome.isPrivate)
-        #expect(Destination.privateLibrary("lib").isPrivate)
-        #expect(Destination.privateSearch("x").isPrivate)
-        #expect(!Destination.home.isPrivate)
-        #expect(!Destination.library("lib").isPrivate)
-        // A series pushed from the private tab is an ordinary destination — which is why the shell
-        // unwinds the whole stack on re-lock rather than trying to classify what is on it.
-        #expect(!Destination.series("s").isPrivate)
-    }
-
-    @Test func privateRootsMapToThePrivateTab() {
-        #expect(MainTab.owning(.privateHome) == .privateArea)
-        #expect(MainTab.owning(.privateLibrary("lib")) == .privateArea)
-        #expect(MainTab.owning(.privateSearch(nil)) == .privateArea)
-        #expect(MainTab.privateArea.root == .privateHome)
+    @Test func theTabBarIsAlwaysTheSameFour() {
+        // Unlocking reveals private content in place; it no longer adds a fifth tab, which is what
+        // made the picker's width untested on a phone.
+        #expect(MainTab.allCases == [.home, .library, .downloads, .settings])
     }
 
     @Test func lockingUnwindsTheStackAndClearsTheQuery() {
         let vm = MainScreenViewModel(authState: KomgaAuthenticationState())
-        vm.navigator.replaceAll(.privateHome)
+        vm.navigator.replaceAll(.library("lib"))
         vm.navigator.push(.series("secret"))
         vm.searchQuery = "something private"
 
-        // What `MainShellView` does when `isUnlocked` flips to false.
+        // What `MainShellView` does when `isUnlocked` flips to false — being inside content that is
+        // about to disappear must eject you.
         vm.navigator.replaceAll(.home)
         vm.searchQuery = ""
 

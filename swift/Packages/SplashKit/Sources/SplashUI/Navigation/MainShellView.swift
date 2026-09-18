@@ -10,9 +10,6 @@ public enum MainTab: String, CaseIterable, Identifiable, Sendable {
     case home
     case library
     case downloads
-    /// Only present while the private area is unlocked — never rendered otherwise, so its very existence
-    /// is not a hint.
-    case privateArea
     case settings
 
     public var id: String { rawValue }
@@ -22,7 +19,6 @@ public enum MainTab: String, CaseIterable, Identifiable, Sendable {
         case .home: "Home"
         case .library: "Library"
         case .downloads: "Downloads"
-        case .privateArea: "Private"
         case .settings: "Settings"
         }
     }
@@ -32,7 +28,6 @@ public enum MainTab: String, CaseIterable, Identifiable, Sendable {
         case .home: "house"
         case .library: "books.vertical"
         case .downloads: "arrow.down.circle"
-        case .privateArea: "lock"
         case .settings: "gearshape"
         }
     }
@@ -43,7 +38,6 @@ public enum MainTab: String, CaseIterable, Identifiable, Sendable {
         case .home: .home
         case .library: .library(nil)
         case .downloads: .downloads
-        case .privateArea: .privateHome
         case .settings: .settings
         }
     }
@@ -56,7 +50,6 @@ public enum MainTab: String, CaseIterable, Identifiable, Sendable {
         case .home: .home
         case .library: .library
         case .downloads: .downloads
-        case .privateHome, .privateLibrary, .privateSearch: .privateArea
         case .settings: .settings
         default: nil
         }
@@ -77,17 +70,23 @@ public struct MainShellView<Content: View>: View {
     public var body: some View {
         NavigationStack(path: Bindable(model.navigator).stack) {
             rootScreen
-                .navigationDestination(for: Destination.self) { pushedScreen($0) }
+                .navigationDestination(for: Destination.self) { content($0) }
         }
-        .id(model.navigator.root)  // replaceAll => fresh stack, like Voyager
+        // Keyed on the unlock state as well as the root: unlocking changes what every screen may show,
+        // and it writes nothing to the hidden set, so the view models' `hiddenChanges()` subscriptions
+        // would not otherwise fire.
+        .id(StackIdentity(root: model.navigator.root, isUnlocked: privacy?.isUnlocked ?? false))
         .onChange(of: privacy?.isUnlocked ?? false) { _, isUnlocked in
             guard !isUnlocked else { return }
-            // On re-lock, unwind unconditionally. Whether a pushed `.series` came from the private tab is
-            // not decidable from the destination alone, and losing a scroll position is a far smaller
-            // cost than leaving hidden content on screen.
+            // Re-locking while deep inside content that is about to disappear must eject you.
             model.navigator.replaceAll(.home)
             model.searchQuery = ""
         }
+    }
+
+    private struct StackIdentity: Hashable {
+        let root: Destination
+        let isUnlocked: Bool
     }
 
     /// Only the *root* of a tab carries the tab picker and the search field: pushed screens get the usual
@@ -96,31 +95,11 @@ public struct MainShellView<Content: View>: View {
         content(model.navigator.root)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    MainTabPicker(selection: tabBinding, tabs: tabs)
+                    MainTabPicker(selection: tabBinding)
                 }
             }
             .modifier(GlobalSearchField(
-                query: $model.searchQuery, isEnabled: isSearchable, isPrivate: isPrivateContext,
-                submit: submitSearch))
-    }
-
-    /// The Private tab exists only while unlocked. `lock()` resets the navigator in the same main-actor
-    /// turn (above), so the picker never sees a selection whose tab has just disappeared.
-    private var tabs: [MainTab] {
-        privacy?.isUnlocked == true
-            ? [.home, .library, .downloads, .privateArea, .settings]
-            : [.home, .library, .downloads, .settings]
-    }
-
-    /// Pushed screens normally have no search field — you search from a tab root. The private area is
-    /// the exception: browsing into a private library or series and losing the ability to search it is
-    /// the one place that gap is felt, because private content has nowhere else to be found.
-    @ViewBuilder private func pushedScreen(_ destination: Destination) -> some View {
-        content(destination)
-            .modifier(GlobalSearchField(
-                query: $model.searchQuery,
-                isEnabled: isPrivateContext && !destination.isPrivateSearch,
-                isPrivate: true, submit: submitSearch))
+                query: $model.searchQuery, isEnabled: isSearchable, submit: submitSearch))
     }
 
     private var tabBinding: Binding<MainTab> {
@@ -133,19 +112,16 @@ public struct MainShellView<Content: View>: View {
     /// search, and the search results screen itself, which owns the field that refines its own results.
     private var isSearchable: Bool {
         switch model.navigator.root {
-        case .settings, .search, .privateSearch: false
+        case .settings, .search: false
         default: true
         }
     }
-
-    /// Inside the private area the same field searches private content instead — the one place it does.
-    private var isPrivateContext: Bool { model.navigator.root.isPrivate }
 
     private func submitSearch() {
         let term = model.searchQuery.trimmingCharacters(in: .whitespaces)
         guard !term.isEmpty else { return }
         model.searchQuery = ""
-        model.navigator.push(isPrivateContext ? .privateSearch(term) : .search(term))
+        model.navigator.push(.search(term))
     }
 }
 
@@ -155,14 +131,12 @@ public struct MainShellView<Content: View>: View {
 /// is applied here — doing so would stack a second capsule inside the system's.
 private struct MainTabPicker: View {
     @Binding var selection: MainTab
-    /// Explicit rather than `allCases`: the Private tab is present only while it is unlocked.
-    let tabs: [MainTab]
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         Picker("Section", selection: $selection) {
-            ForEach(tabs) { tab in
-                // Four or five words do not fit across a phone; icons carry the same destinations there.
+            ForEach(MainTab.allCases) { tab in
+                // Four words do not fit across a phone; icons carry the same four destinations there.
                 if sizeClass == .compact {
                     Label(tab.title, systemImage: tab.systemImage).labelStyle(.iconOnly).tag(tab)
                 } else {
@@ -182,15 +156,12 @@ private struct MainTabPicker: View {
 private struct GlobalSearchField: ViewModifier {
     @Binding var query: String
     let isEnabled: Bool
-    let isPrivate: Bool
     let submit: () -> Void
 
     func body(content: Content) -> some View {
         if isEnabled {
             content
-                .searchable(
-                    text: $query,
-                    prompt: Text(isPrivate ? "Search private" : "Search all libraries"))
+                .searchable(text: $query, prompt: Text("Search all libraries"))
                 .onSubmit(of: .search, submit)
         } else {
             content

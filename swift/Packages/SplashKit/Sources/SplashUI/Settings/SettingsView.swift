@@ -56,7 +56,9 @@ public struct SettingsView: View {
                 // Only while unlocked: a permanent row here would be the visible entry point the private
                 // area is designed not to have.
                 if privacy?.isUnlocked == true {
-                    NavigationLink { PrivacySettingsView() } label: {
+                    NavigationLink {
+                        PrivacySettingsView(catalog: session.viewModelFactory.privateCatalogViewModel())
+                    } label: {
                         Label("Private", systemImage: "lock")
                     }
                 }

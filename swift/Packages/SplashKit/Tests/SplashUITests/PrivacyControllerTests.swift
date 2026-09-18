@@ -145,6 +145,24 @@ final class FakeAccessPolicy: PremiumAccessPolicy {
         #expect(!controller.isHidden(seriesId: KomgaSeriesId("s1")))
     }
 
+    /// The whole of round 3 in one assertion: unlocking means "stop filtering", decided in exactly one
+    /// place. Before this, `filter()` ignored `isUnlocked` and hidden downloads stayed invisible even
+    /// while the rest of the app was revealed.
+    @Test func filterStopsFilteringOnceUnlocked() async throws {
+        var content = HiddenContent()
+        content.series = [KomgaSeriesId("s1")]
+        let (controller, _, _) = try await make(hidden: content)
+
+        #expect(controller.filter().hidden.series == [KomgaSeriesId("s1")])
+        await controller.requestReveal()
+        #expect(controller.isUnlocked)
+        #expect(controller.filter().isNoop)
+        #expect(controller.filter().hidden.series.isEmpty)
+
+        controller.lock()
+        #expect(controller.filter().hidden.series == [KomgaSeriesId("s1")])
+    }
+
     @Test func filterIsDisabledWhenTheHiddenSetBelongsToAnotherServer() async throws {
         var other = HiddenContent()
         other.serverUrl = "http://somewhere.else"

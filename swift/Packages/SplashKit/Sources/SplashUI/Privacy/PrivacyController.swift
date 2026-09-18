@@ -46,11 +46,16 @@ public final class PrivacyController {
     public var lockPolicy: PrivacyLockPolicy { hidden.lockPolicy }
     public var lockTimeout: TimeInterval { hidden.lockTimeout }
 
-    /// The filter every ordinary screen uses. Returns `.disabled` when the hidden set belongs to a
-    /// different server, so ids can never be applied to content they were not recorded against.
-    public func filter(_ mode: HiddenContentMode = .excludeHidden) -> HiddenContentFilter {
+    /// The filter every screen uses, and the only place the unlock state is consulted.
+    ///
+    /// Unlocking is simply "stop filtering": private content reappears wherever Komga puts it, rather
+    /// than in a parallel screen of its own. Keeping that decision here — instead of at each call site —
+    /// is what stopped the Downloads shelf from staying filtered while the rest of the app was unlocked.
+    public func filter() -> HiddenContentFilter {
+        guard !isUnlocked else { return .disabled }
+        // Komga ids are per-server; a set recorded against another server must never be applied here.
         guard hidden.applies(to: settings.value.serverUrl) else { return .disabled }
-        return HiddenContentFilter(hidden: hidden, mode: mode)
+        return HiddenContentFilter(hidden: hidden)
     }
 
     // MARK: - Reveal

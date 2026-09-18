@@ -15,25 +15,6 @@ public enum Destination: Hashable, Sendable {
     /// Tab roots that are not Komga content (`MainTab.downloads` / `.settings`).
     case downloads
     case settings
-    /// The private area. Only reachable while `PrivacyController.isUnlocked`.
-    case privateHome
-    case privateLibrary(KomgaLibraryId)
-    case privateSearch(String?)
-}
-
-extension Destination {
-    /// True for the private results screen, which owns the field that refines its own results.
-    public var isPrivateSearch: Bool {
-        if case .privateSearch = self { true } else { false }
-    }
-
-    /// Whether this destination belongs to the private area, so the shell can tear it down on re-lock.
-    public var isPrivate: Bool {
-        switch self {
-        case .privateHome, .privateLibrary, .privateSearch: true
-        default: false
-        }
-    }
 }
 
 /// Explicit stack navigator mirroring Voyager's `Navigator` API (`push`, `pop`, `replace`, `replaceAll`,

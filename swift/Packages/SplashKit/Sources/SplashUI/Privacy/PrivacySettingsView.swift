@@ -7,6 +7,7 @@ import SwiftUI
 /// Reachable only while unlocked — `SettingsView` does not render the row otherwise, because a permanent
 /// "Private" row in Settings would be exactly the visible entry point this feature is meant not to have.
 struct PrivacySettingsView: View {
+    @State var catalog: PrivateCatalogViewModel
     @Environment(\.privacy) private var privacy
     @Environment(\.dismiss) private var dismiss
 
@@ -47,9 +48,27 @@ struct PrivacySettingsView: View {
             }
 
             Section {
-                LabeledContent("Hidden libraries", value: "\(privacy.hidden.libraries.count)")
-                LabeledContent("Hidden series", value: "\(privacy.hidden.series.count)")
-                LabeledContent("Hidden books", value: "\(privacy.hidden.books.count)")
+                if catalog.state.isUninitialized || (catalog.state.isLoading && catalog.isEmpty) {
+                    ProgressView()
+                } else if catalog.isEmpty {
+                    Text("Nothing is hidden.").foregroundStyle(.secondary)
+                } else {
+                    ForEach(catalog.libraries) { library in
+                        row(library.name, subtitle: String(localized: "Library"), systemImage: "books.vertical") {
+                            await privacy.setHidden(false, libraryId: library.id)
+                        }
+                    }
+                    ForEach(catalog.series) { item in
+                        row(item.metadata.title, subtitle: String(localized: "Series"), systemImage: "square.stack") {
+                            await privacy.setHidden(false, seriesId: item.id)
+                        }
+                    }
+                    ForEach(catalog.books) { book in
+                        row(book.metadata.title, subtitle: book.seriesTitle, systemImage: "book") {
+                            await privacy.setHidden(false, bookId: book.id)
+                        }
+                    }
+                }
             } header: {
                 Text("Hidden items")
             } footer: {
@@ -68,6 +87,30 @@ struct PrivacySettingsView: View {
             }
         }
         .navigationTitle("Private")
+        .task {
+            catalog.start()
+            if catalog.state.isUninitialized { await catalog.load() }
+        }
+        .onDisappear { catalog.stop() }
+    }
+
+    /// One hidden item, with the only action that matters here.
+    private func row(
+        _ title: String, subtitle: String, systemImage: String, unhide: @escaping () async -> Void
+    ) -> some View {
+        HStack {
+            Label {
+                VStack(alignment: .leading) {
+                    Text(title)
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemName: systemImage)
+            }
+            Spacer()
+            Button("Unhide") { Task { await unhide() } }
+                .buttonStyle(.borderless)
+        }
     }
 
     private func footer(for policy: PrivacyLockPolicy) -> LocalizedStringKey {

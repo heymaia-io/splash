@@ -66,6 +66,9 @@ public struct AppRootView: View {
                         if session.isOfflineMode, let offline = session.offlineController {
                             OfflineBanner(offline: offline)
                         }
+                        if let privacy = session.privacy, privacy.isUnlocked {
+                            PrivacyBanner(privacy: privacy)
+                        }
                         main(mainModel)
                     }
                     .id(session.contentGeneration)
@@ -119,7 +122,6 @@ public struct AppRootView: View {
                 DestinationView(
                     destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
                     api: model.navigator.root == .downloads ? session.offlineApi : nil,
-                    hiddenMode: model.navigator.root.isPrivate ? .onlyHidden : .excludeHidden,
                     onRead: { open($0) })
             }
         }
@@ -142,8 +144,8 @@ public struct AppRootView: View {
     /// reader. EPUBs that Komga marks as DiViNa-compatible (fixed-layout comics) also use the image reader.
     private func open(_ book: SplashBook) {
         // Deep links and `initialBook` skip every listing, so the guard has to be repeated here.
-        let privacy = session.privacy
-        if let privacy, !privacy.isUnlocked, privacy.filter().isHidden(book: book) { return }
+        // `filter()` already accounts for the unlock state, so no extra check is needed.
+        if session.privacy?.filter().isHidden(book: book) == true { return }
         guard book.media.mediaProfile == .epub, !book.media.epubDivinaCompatible else {
             Task { readerApi = await session.readingApi(for: book); readingBook = book }
             return

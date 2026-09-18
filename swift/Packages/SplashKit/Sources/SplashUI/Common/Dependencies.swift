@@ -42,17 +42,18 @@ public final class ViewModelFactory {
     }
 
     /// A *provider*, not a snapshot: screens call it on every fetch so hiding something takes effect
-    /// without rebuilding the view model. `mode` is `.onlyHidden` only inside the private area.
+    /// without rebuilding the view model.
     ///
-    /// Centralising the multi-server guard here means no screen can forget it — ids recorded against one
-    /// Komga server are never applied to another, where they could collide with unrelated content.
-    func hiddenFilter(_ mode: HiddenContentMode = .excludeHidden) -> @MainActor () -> HiddenContentFilter {
+    /// Note this is the factory's own copy of the rule, not `PrivacyController.filter()` — the factory
+    /// deliberately knows nothing about lock state. The shell rebuilds screens when that flips, so a
+    /// view model only ever needs to know what is hidden, never whether it is currently revealed.
+    func hiddenFilter() -> @MainActor () -> HiddenContentFilter {
         let repository = hiddenContent
         let settings = self.settings
         return {
             let hidden = repository.value
             guard hidden.applies(to: settings.value.serverUrl) else { return .disabled }
-            return HiddenContentFilter(hidden: hidden, mode: mode)
+            return HiddenContentFilter(hidden: hidden)
         }
     }
 
@@ -68,46 +69,40 @@ public final class ViewModelFactory {
     }
 
     func libraryViewModel(
-        libraryId: KomgaLibraryId?, api: (any KomgaApi)? = nil, hiddenMode: HiddenContentMode = .excludeHidden
-    ) -> LibraryViewModel {
+        libraryId: KomgaLibraryId?, api: (any KomgaApi)? = nil    ) -> LibraryViewModel {
         LibraryViewModel(
             api: api ?? self.api, libraryId: libraryId, authState: authState, settings: settings, events: events,
-            hiddenFilter: hiddenFilter(hiddenMode), hiddenChanges: { [hiddenContent] in hiddenContent.values() })
+            hiddenFilter: hiddenFilter(), hiddenChanges: { [hiddenContent] in hiddenContent.values() })
     }
 
     func seriesViewModel(
-        seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil, hiddenMode: HiddenContentMode = .excludeHidden
-    ) -> SeriesViewModel {
+        seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil    ) -> SeriesViewModel {
         SeriesViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, settings: settings,
-                        events: events, hiddenFilter: hiddenFilter(hiddenMode))
+                        events: events, hiddenFilter: hiddenFilter())
     }
 
     func bookViewModel(
-        bookId: KomgaBookId, api: (any KomgaApi)? = nil, hiddenMode: HiddenContentMode = .excludeHidden
-    ) -> BookViewModel {
+        bookId: KomgaBookId, api: (any KomgaApi)? = nil    ) -> BookViewModel {
         BookViewModel(bookId: bookId, api: api ?? self.api, authState: authState, events: events,
-                      hiddenFilter: hiddenFilter(hiddenMode))
+                      hiddenFilter: hiddenFilter())
     }
 
     func oneshotViewModel(
-        seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil, hiddenMode: HiddenContentMode = .excludeHidden
-    ) -> OneshotViewModel {
+        seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil    ) -> OneshotViewModel {
         OneshotViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, events: events,
-                         hiddenFilter: hiddenFilter(hiddenMode))
+                         hiddenFilter: hiddenFilter())
     }
 
     func collectionViewModel(
-        collectionId: KomgaCollectionId, hiddenMode: HiddenContentMode = .excludeHidden
-    ) -> CollectionViewModel {
+        collectionId: KomgaCollectionId    ) -> CollectionViewModel {
         CollectionViewModel(collectionId: collectionId, api: api, settings: settings, events: events,
-                            hiddenFilter: hiddenFilter(hiddenMode))
+                            hiddenFilter: hiddenFilter())
     }
 
     func readListViewModel(
-        readListId: KomgaReadListId, hiddenMode: HiddenContentMode = .excludeHidden
-    ) -> ReadListViewModel {
+        readListId: KomgaReadListId    ) -> ReadListViewModel {
         ReadListViewModel(readListId: readListId, api: api, settings: settings, events: events,
-                          hiddenFilter: hiddenFilter(hiddenMode))
+                          hiddenFilter: hiddenFilter())
     }
 
     /// `api` overrides the active API for this reader only — used to read a downloaded book from the
@@ -118,26 +113,13 @@ public final class ViewModelFactory {
         ReaderViewModel(bookId: bookId, api: api ?? self.api, settings: imageReaderSettings, siblings: siblings)
     }
 
-    func privateHomeViewModel() -> PrivateHomeViewModel {
-        PrivateHomeViewModel(
-            api: api, filters: homeFilters, authState: authState, catalog: privateCatalogViewModel(),
-            hiddenFilter: hiddenFilter(.onlyHidden),
-            hiddenChanges: { [hiddenContent] in hiddenContent.values() })
-    }
-
-    func privateSearchViewModel(query: String?) -> PrivateSearchViewModel {
-        PrivateSearchViewModel(
-            api: api, catalog: privateCatalogViewModel(), initialQuery: query ?? "",
-            hiddenFilter: hiddenFilter(.onlyHidden))
-    }
-
     func privateCatalogViewModel() -> PrivateCatalogViewModel {
         PrivateCatalogViewModel(
-            api: api, authState: authState, hiddenFilter: hiddenFilter(.onlyHidden),
+            api: api, authState: authState, hiddenFilter: hiddenFilter(),
             hiddenChanges: { [hiddenContent] in hiddenContent.values() })
     }
 
-    func searchViewModel(query: String?, hiddenMode: HiddenContentMode = .excludeHidden) -> SearchViewModel {
-        SearchViewModel(api: api, initialQuery: query ?? "", hiddenFilter: hiddenFilter(hiddenMode))
+    func searchViewModel(query: String?) -> SearchViewModel {
+        SearchViewModel(api: api, initialQuery: query ?? "", hiddenFilter: hiddenFilter())
     }
 }
