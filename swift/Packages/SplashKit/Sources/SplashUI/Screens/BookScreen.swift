@@ -160,7 +160,7 @@ struct BookDetails: View {
                 }
                 if !book.metadata.summary.isEmpty { Text(book.metadata.summary) }
                 ChipRow(title: "Authors", values: book.metadata.authors.map { "\($0.name) (\($0.role))" })
-                ChipRow(title: "Tags", values: book.metadata.tags.sorted())
+                ChipRow(title: "Tags", values: book.metadata.tags.sorted()) { navigate(.facet(.tag($0))) }
                 if !model.readLists.isEmpty {
                     VStack(alignment: .leading) {
                         Text("Read lists").font(.headline)

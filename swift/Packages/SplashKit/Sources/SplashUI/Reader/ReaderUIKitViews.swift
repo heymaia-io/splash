@@ -11,9 +11,14 @@ import UIKit
 final class SpreadScrollView: UIScrollView, UIScrollViewDelegate {
     private let container = UIView()
     private var imageViews: [UIImageView] = []
+    /// What each image view currently shows, so a re-layout does not re-decode the same pixels.
+    private var rendered: [Int: RenderKey] = [:]
     private var pages: [LoadedPage] = []
     private var configuration: Configuration?
     var onTap: ((CGPoint) -> Void)?
+    /// Reports the un-zoomed pixel budget of the largest page, so the model can warm neighbouring spreads at
+    /// the size they will actually be displayed at.
+    var onDisplayPixels: ((CGSize) -> Void)?
 
     struct Configuration: Equatable {
         var scaleType: LayoutScaleType
@@ -21,6 +26,11 @@ final class SpreadScrollView: UIScrollView, UIScrollViewDelegate {
         var rightToLeft: Bool
         var pageIds: [PageId]
         var contentSizes: [CGSize]
+    }
+
+    private struct RenderKey: Equatable {
+        let page: PageId
+        let pixels: CGSize
     }
 
     override init(frame: CGRect) {
@@ -33,12 +43,10 @@ final class SpreadScrollView: UIScrollView, UIScrollViewDelegate {
         contentInsetAdjustmentBehavior = .never
         addSubview(container)
 
-        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
-        doubleTap.numberOfTapsRequired = 2
-        addGestureRecognizer(doubleTap)
-        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
-        tap.require(toFail: doubleTap)
-        addGestureRecognizer(tap)
+        // Only a single tap, deliberately: a double-tap recognizer would force every tap to wait out the
+        // double-tap interval (~300 ms) before a page could turn, which is most of the tap-to-turn latency.
+        // Zooming is pinch-only here.
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap(_:))))
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -78,13 +86,20 @@ final class SpreadScrollView: UIScrollView, UIScrollViewDelegate {
             stretchToFit: config.stretchToFit, screenScale: window?.screen.scale ?? 2)
         let (content, frames) = SpreadLayout.frames(for: sizes, rightToLeft: config.rightToLeft)
 
-        imageViews.forEach { $0.removeFromSuperview() }
-        imageViews = frames.map { frame in
-            let view = UIImageView(frame: frame)
-            view.contentMode = .scaleAspectFit
-            view.backgroundColor = .clear
-            container.addSubview(view)
-            return view
+        // Views are reused whenever the spread has the same number of pages: recreating them would blank the
+        // outgoing page for a frame on every turn, which is the flash the reader used to show.
+        if imageViews.count == frames.count {
+            for (view, frame) in zip(imageViews, frames) { view.frame = frame }
+        } else {
+            imageViews.forEach { $0.removeFromSuperview() }
+            rendered.removeAll()
+            imageViews = frames.map { frame in
+                let view = UIImageView(frame: frame)
+                view.contentMode = .scaleAspectFit
+                view.backgroundColor = .clear
+                container.addSubview(view)
+                return view
+            }
         }
         container.frame = CGRect(origin: .zero, size: content)
         contentSize = content
@@ -105,20 +120,33 @@ final class SpreadScrollView: UIScrollView, UIScrollViewDelegate {
     /// `updateSpreadImageState` → ask each image for enough pixels at the current zoom.
     private func refreshBitmaps() {
         let screenScale = window?.screen.scale ?? 2
+        var budget: CGSize = .zero
         for (index, page) in pages.enumerated() {
-            guard let image = page.image, imageViews.indices.contains(index) else {
-                if imageViews.indices.contains(index) { imageViews[index].image = nil }
-                continue
-            }
+            guard imageViews.indices.contains(index) else { continue }
             let view = imageViews[index]
             let needed = CGSize(
                 width: view.bounds.width * zoomScale * screenScale,
                 height: view.bounds.height * zoomScale * screenScale)
-            Task { @MainActor [weak view] in
-                guard let bitmap = await image.bitmap(forDisplayedPixels: needed) else { return }
+            if needed.width * needed.height > budget.width * budget.height { budget = needed }
+            // A page that has not loaded yet keeps whatever the view already shows: blanking it here is what
+            // made a turn flash before the new bitmap arrived.
+            guard let image = page.image else { continue }
+            let key = RenderKey(page: page.id, pixels: needed)
+            guard rendered[index] != key else { continue }
+            rendered[index] = key
+            Task { @MainActor [weak self, weak view] in
+                guard let bitmap = await image.bitmap(forDisplayedPixels: needed) else {
+                    self?.rendered[index] = nil
+                    return
+                }
+                // Views are reused now, so a decode that finishes after the spread moved on would paint a
+                // stale page. The key is still the one this task was started for, or it is not ours.
+                guard self?.rendered[index] == key else { return }
                 view?.image = UIImage(cgImage: bitmap.image)
             }
         }
+        // Zoomed-in budgets are transient; the warm-up wants the resting size.
+        if zoomScale <= 1.01, budget != .zero { onDisplayPixels?(budget) }
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { container }
@@ -132,17 +160,6 @@ final class SpreadScrollView: UIScrollView, UIScrollViewDelegate {
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
         onTap?(gesture.location(in: superview ?? self))
     }
-
-    @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
-        if zoomScale > 1.01 {
-            setZoomScale(1, animated: true)
-        } else {
-            let point = gesture.location(in: container)
-            let size = CGSize(width: bounds.width / 2.5, height: bounds.height / 2.5)
-            zoom(to: CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2,
-                            width: size.width, height: size.height), animated: true)
-        }
-    }
 }
 
 struct PagedSpreadView: UIViewRepresentable {
@@ -151,6 +168,7 @@ struct PagedSpreadView: UIViewRepresentable {
     let stretchToFit: Bool
     let rightToLeft: Bool
     let onTap: (CGPoint, CGFloat) -> Void
+    let onDisplayPixels: (CGSize) -> Void
 
     func makeUIView(context: Context) -> SpreadScrollView {
         SpreadScrollView(frame: .zero)
@@ -158,6 +176,7 @@ struct PagedSpreadView: UIViewRepresentable {
 
     func updateUIView(_ view: SpreadScrollView, context: Context) {
         view.onTap = { [weak view] point in onTap(point, view?.bounds.width ?? 1) }
+        view.onDisplayPixels = onDisplayPixels
         view.update(pages: pages, scaleType: scaleType, stretchToFit: stretchToFit, rightToLeft: rightToLeft)
     }
 }

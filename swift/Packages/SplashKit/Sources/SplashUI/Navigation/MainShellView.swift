@@ -98,7 +98,8 @@ public struct MainShellView<Content: View>: View {
     private var tabBinding: Binding<MainTab> {
         Binding(
             get: { MainTab.owning(model.navigator.root) ?? .home },
-            set: { model.navigator.replaceAll($0.root) })
+            // Through the model, not `tab.root`: the Library tab reopens on the library the user last chose.
+            set: { model.navigator.replaceAll(model.root(for: $0)) })
     }
 
     /// Search is global, so it rides along on every root screen — except Settings, which has nothing to

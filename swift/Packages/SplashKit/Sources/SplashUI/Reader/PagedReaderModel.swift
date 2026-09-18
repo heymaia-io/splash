@@ -37,8 +37,14 @@ public final class PagedReaderModel {
     let reader: ReaderViewModel
     private var imageCache: [PageId: ReaderImage] = [:]
     private var cacheOrder: [PageId] = []
-    private static let cacheSize = 10
+    /// Large enough to hold the displayed spread *and* every page the warm-up decodes ahead of it, so warming
+    /// can never evict what is on screen.
+    nonisolated static let cacheSize = 16
     private var loadTask: Task<Void, Never>?
+    private var warmTask: Task<Void, Never>?
+    /// Pixel budget of the spread as displayed, reported by the view. Warming decodes at this size so the
+    /// bitmap `ReaderImage` caches is the one the view then asks for, instead of a second decode per turn.
+    private var displayPixels: CGSize = .zero
 
     public init(reader: ReaderViewModel) {
         self.reader = reader
@@ -56,6 +62,12 @@ public final class PagedReaderModel {
         case .rightToLeft: .rightToLeft
         default: fallback
         }
+    }
+
+    /// Called by the spread view once it knows how big the pages are drawn.
+    public func displayPixelsChanged(_ size: CGSize) {
+        guard size != .zero, size != displayPixels else { return }
+        displayPixels = size
     }
 
     public var currentPageNumber: Int { spreads[safe: currentSpreadIndex]?.last?.pageNumber ?? 1 }
@@ -153,6 +165,7 @@ public final class PagedReaderModel {
 
     /// Crop-borders changes invalidate decoded images.
     public func reloadImages() {
+        warmTask?.cancel()
         imageCache.removeAll()
         cacheOrder.removeAll()
         load(spreadIndex: currentSpreadIndex, reportProgress: false)
@@ -189,12 +202,52 @@ public final class PagedReaderModel {
             let loaded = await self.loadPages(metadata)
             guard !Task.isCancelled, self.currentSpreadIndex == spreadIndex else { return }
             self.currentSpread = loaded
-            // Warm neighbouring spreads (`getSpreadLoadRange`).
-            let neighbours = [spreadIndex - 1, spreadIndex + 1, spreadIndex + 2]
-                .filter { self.spreads.indices.contains($0) }
-                .flatMap { self.spreads[$0] }
-            await self.reader.pages.prefetch(neighbours.map(\.id))
         }
+        // Warming is scheduled outside `loadTask` on purpose: it used to be that task's last statement, so a
+        // second tap cancelled it before it ever ran and fast paging always hit a cold cache.
+        scheduleWarm(around: spreadIndex)
+    }
+
+    /// Warms neighbouring spreads (`getSpreadLoadRange`) all the way to a decoded bitmap, not just to encoded
+    /// bytes: the ImageIO decode is the expensive half of a page turn, and doing it after the tap is what made
+    /// turns visibly slow.
+    private func scheduleWarm(around index: Int) {
+        warmTask?.cancel()
+        let order = Self.warmWindow(around: index, count: spreads.count)
+        guard !order.isEmpty else { return }
+        let pages = order.flatMap { spreads[$0] }
+        warmTask = Task(priority: .utility) { [weak self] in
+            // Let the tapped spread win the race for the connection / the zip actor.
+            try? await Task.sleep(for: .milliseconds(50))
+            for meta in pages {
+                guard !Task.isCancelled, let self else { return }
+                await self.warm(meta)
+            }
+        }
+    }
+
+    /// Which spreads to warm, in the order they are most likely to be needed: forward first, then back, then
+    /// one further forward. Deliberately short — `cacheSize` has to hold all of it plus the displayed spread,
+    /// and offline page extraction is serialized by one actor, so a long queue would delay the next tap.
+    nonisolated static func warmWindow(around index: Int, count: Int) -> [Int] {
+        [index + 1, index - 1, index + 2].filter { (0..<count).contains($0) }
+    }
+
+    private func warm(_ meta: PageMetadata) async {
+        let target = displayPixels
+        if let cached = imageCache[meta.id] {
+            if target != .zero { _ = await cached.bitmap(forDisplayedPixels: target) }
+            return
+        }
+        guard let data = try? await reader.pages.data(for: meta.id) else { return }
+        let crop = reader.settings.value.cropBorders
+        let factory = reader.imageFactory
+        guard let image = try? await Task.detached(priority: .utility, operation: {
+            try factory.makeImage(pageId: meta.id, data: data, cropBorders: crop)
+        }).value else { return }
+        guard !Task.isCancelled else { return }
+        cache(image, for: meta.id)
+        if target != .zero { _ = await image.bitmap(forDisplayedPixels: target) }
     }
 
     private func loadPages(_ metadata: [PageMetadata]) async -> [LoadedPage] {

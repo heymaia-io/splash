@@ -60,6 +60,6 @@ import Testing
         #expect(offlineApplied == ["v1_offline_mode", "v2_book_download"])
 
         let appApplied = try await temp.database.app.read { db in try AppMigrations.migrator.appliedMigrations(db) }
-        #expect(appApplied == ["v1_initial", "v2_privacy"])
+        #expect(appApplied == ["v1_initial", "v2_privacy", "v3_last_library"])
     }
 }

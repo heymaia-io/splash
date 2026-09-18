@@ -103,11 +103,13 @@ public struct ReaderView: View {
             PagedSpreadView(
                 pages: paged.currentSpread, scaleType: paged.scaleType,
                 stretchToFit: model.settings.value.stretchToFit,
-                rightToLeft: paged.readingDirection == .rightToLeft
-            ) { point, width in
-                tapWidth = width
-                handleTap(paged: paged, x: point.x)
-            }
+                rightToLeft: paged.readingDirection == .rightToLeft,
+                onTap: { point, width in
+                    tapWidth = width
+                    handleTap(paged: paged, x: point.x)
+                },
+                onDisplayPixels: { paged.displayPixelsChanged($0) }
+            )
             .ignoresSafeArea()
             .overlay { pageErrors(paged.currentSpread) }
             #else

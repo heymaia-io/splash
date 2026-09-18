@@ -264,3 +264,40 @@ struct ErrorView: View {
 extension KomgaSeries {
     var releaseYear: Int? { booksMetadata.releaseDate?.year }
 }
+
+/// Caption plus a horizontal row of metadata chips (tags, genres, authors). Shared by the series and book
+/// detail screens.
+///
+/// `onTap` makes the chips browsable: a tag chip opens everything carrying that tag. Chips without an action
+/// stay plain text rather than looking tappable and doing nothing.
+struct ChipRow: View {
+    let title: LocalizedStringKey
+    let values: [String]
+    var onTap: ((String) -> Void)?
+
+    var body: some View {
+        if !values.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.caption.bold()).foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(values, id: \.self) { value in
+                            if let onTap {
+                                Button { onTap(value) } label: { chip(value) }
+                                    .buttonStyle(.plain)
+                            } else {
+                                chip(value)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func chip(_ value: String) -> some View {
+        Text(value).font(.caption)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(.quaternary, in: Capsule())
+    }
+}

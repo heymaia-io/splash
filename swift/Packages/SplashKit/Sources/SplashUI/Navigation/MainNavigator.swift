@@ -12,9 +12,39 @@ public enum Destination: Hashable, Sendable {
     case collection(KomgaCollectionId)
     case readList(KomgaReadListId)
     case search(String?)
+    /// [NUEVO] Everything carrying one metadata value — reached by tapping a tag or genre chip.
+    case facet(BrowseFacet)
     /// Tab roots that are not Komga content (`MainTab.downloads` / `.settings`).
     case downloads
     case settings
+}
+
+/// [NUEVO] A metadata value to browse by. It owns the conditions it stands for (value object), so the
+/// destination, the factory and the screen stay one copy each however many facets are added.
+public enum BrowseFacet: Hashable, Sendable {
+    case tag(String)
+    case genre(String)
+
+    public var value: String {
+        switch self {
+        case .tag(let value), .genre(let value): value
+        }
+    }
+
+    public var seriesCondition: SeriesCondition {
+        switch self {
+        case .tag(let value): .tag(.isEqualTo(value))
+        case .genre(let value): .genre(.isEqualTo(value))
+        }
+    }
+
+    /// `nil` when the facet cannot apply to books: Komga has no book-level genre.
+    public var bookCondition: BookCondition? {
+        switch self {
+        case .tag(let value): .tag(.isEqualTo(value))
+        case .genre: nil
+        }
+    }
 }
 
 /// Explicit stack navigator mirroring Voyager's `Navigator` API (`push`, `pop`, `replace`, `replaceAll`,

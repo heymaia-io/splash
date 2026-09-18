@@ -16,6 +16,20 @@ import Testing
 
     func numbers(_ spreads: [[PageMetadata]]) -> [[Int]] { spreads.map { $0.map(\.pageNumber) } }
 
+    /// [NUEVO] Page turns used to pay for the ImageIO decode after the tap, so neighbouring spreads are now
+    /// warmed all the way to a bitmap. The window has to stay short: the decoded-image cache must hold it
+    /// *plus* the displayed spread, or warming would evict the page the reader is looking at.
+    @Test func warmWindowStaysWithinTheImageCache() {
+        #expect(PagedReaderModel.warmWindow(around: 2, count: 10) == [3, 1, 4])
+        // Clamped at both ends, and empty when there is nowhere to go.
+        #expect(PagedReaderModel.warmWindow(around: 0, count: 10) == [1, 2])
+        #expect(PagedReaderModel.warmWindow(around: 9, count: 10) == [8])
+        #expect(PagedReaderModel.warmWindow(around: 0, count: 1).isEmpty)
+
+        let warmedPages = PagedReaderModel.warmWindow(around: 5, count: 20).count * 2  // double-page spreads
+        #expect(warmedPages + 2 <= PagedReaderModel.cacheSize)
+    }
+
     @Test func singlePageSpreads() {
         #expect(numbers(PagedReaderModel.buildSpreadMap(pages(count: 3), layout: .singlePage, offset: false))
                 == [[1], [2], [3]])

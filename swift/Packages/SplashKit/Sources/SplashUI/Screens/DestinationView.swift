@@ -16,6 +16,9 @@ struct DestinationView: View {
     var offlineApi: (any KomgaApi)?
     /// Which books a series opens on. The Downloads tab opens on what you have downloaded.
     var downloadFilter: BookDownloadFilter = .all
+    /// [NUEVO] Persists the library switcher's choice so the Library tab reopens on it. Supplied by the
+    /// composition root, which owns the `MainScreenViewModel` this view does not see.
+    var rememberLibrary: (KomgaLibraryId?) -> Void = { _ in }
     let onRead: (SplashBook) -> Void
 
     var body: some View {
@@ -23,8 +26,12 @@ struct DestinationView: View {
         case .home:
             HomeScreen(model: factory.homeViewModel(), navigate: navigate, cardWidth: cardWidth)
         case .library(let id):
-            LibraryScreen(model: factory.libraryViewModel(libraryId: id), navigate: navigate,
-                          selectLibrary: { navigator.replaceAll(.library($0)) })
+            LibraryScreen(
+                model: factory.libraryViewModel(libraryId: id), navigate: navigate,
+                selectLibrary: {
+                    rememberLibrary($0)
+                    navigator.replaceAll(.library($0))
+                })
                 .id(id)
         case .series(let id):
             SeriesScreen(
@@ -42,6 +49,8 @@ struct DestinationView: View {
             ReadListScreen(model: factory.readListViewModel(readListId: id), navigate: navigate)
         case .search(let query):
             SearchScreen(model: factory.searchViewModel(query: query), cardWidth: cardWidth, navigate: navigate)
+        case .facet(let facet):
+            FacetBrowseScreen(model: factory.facetViewModel(facet), navigate: navigate)
         case .downloads:
             DownloadsView(cardWidth: cardWidth, navigate: navigate)
         case .settings:

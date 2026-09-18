@@ -130,6 +130,8 @@ private struct AppSettingsRow: FetchableRecord, PersistableRecord {
         s.bookPageLoadSize = try row.decode(forColumn: "book_page_load_size")
         s.bookListLayout = try row.decodeEnum("book_list_layout")
         s.appTheme = try row.decodeEnum("app_theme")
+        // Nullable, and NULL for every row written before the v3 migration.
+        s.lastLibraryId = row["last_library_id"]
         settings = s
     }
 
@@ -142,6 +144,7 @@ private struct AppSettingsRow: FetchableRecord, PersistableRecord {
         container["book_page_load_size"] = settings.bookPageLoadSize
         container["book_list_layout"] = settings.bookListLayout.rawValue
         container["app_theme"] = settings.appTheme.rawValue
+        container["last_library_id"] = settings.lastLibraryId
     }
 }
 

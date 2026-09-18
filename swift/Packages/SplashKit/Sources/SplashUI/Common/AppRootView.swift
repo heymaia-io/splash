@@ -68,7 +68,9 @@ public struct AppRootView: View {
                     .id(session.contentGeneration)
                 } else {
                     ProgressView().onAppear {
-                        let model = MainScreenViewModel(authState: session.authState)
+                        let model = MainScreenViewModel(
+                            authState: session.authState, settings: session.settings,
+                            hiddenFilter: { session.privacy?.filter() ?? .disabled })
                         model.startListening(to: session.viewModelFactory.events.subscribe())
                         mainModel = model
                     }
@@ -122,6 +124,7 @@ public struct AppRootView: View {
                     api: destination == .downloads ? session.offlineApi : nil,
                     offlineApi: session.offlineApi,
                     downloadFilter: model.navigator.root == .downloads ? .downloaded : .all,
+                    rememberLibrary: { model.rememberLibrary($0) },
                     onRead: { open($0) })
             }
         }

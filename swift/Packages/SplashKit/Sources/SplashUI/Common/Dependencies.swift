@@ -107,6 +107,11 @@ public final class ViewModelFactory {
         ReaderViewModel(bookId: bookId, api: api ?? self.api, settings: imageReaderSettings, siblings: siblings)
     }
 
+    func facetViewModel(_ facet: BrowseFacet) -> FacetBrowseViewModel {
+        FacetBrowseViewModel(facet: facet, api: api, settings: settings, hiddenFilter: hiddenFilter,
+                             hiddenChanges: hiddenChanges)
+    }
+
     func searchViewModel(query: String?) -> SearchViewModel {
         SearchViewModel(api: api, initialQuery: query ?? "", hiddenFilter: hiddenFilter)
     }

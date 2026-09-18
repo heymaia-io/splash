@@ -59,6 +59,9 @@ public final class SeriesViewModel {
     public private(set) var totalPages = 1
     public var sort: BooksSortOption = .numberAsc
     public var downloadFilter: BookDownloadFilter
+    /// [NUEVO] Book-tag filter. Several tags read as OR, like the library's series-tag filter.
+    public var selectedTags: Set<String> = []
+    public private(set) var availableTags: [String] = []
     public private(set) var collections: [KomgaCollection] = []
     public private(set) var actionError: String?
 
@@ -116,7 +119,8 @@ public final class SeriesViewModel {
         await loadSeries()
         async let books: Void = loadBooks(page: 1)
         async let collections: Void = loadCollections()
-        _ = await (books, collections)
+        async let tags: Void = loadTags()
+        _ = await (books, collections, tags)
     }
 
     public func reload() async {
@@ -127,6 +131,11 @@ public final class SeriesViewModel {
     public func onPageChange(_ page: Int) async { await loadBooks(page: page) }
     public func onSortChange() async { await loadBooks(page: 1) }
     public func onDownloadFilterChange() async { await loadBooks(page: 1) }
+    public func onTagFilterChange() async { await loadBooks(page: 1) }
+
+    public func toggleTag(_ tag: String) {
+        if selectedTags.contains(tag) { selectedTags.remove(tag) } else { selectedTags.insert(tag) }
+    }
 
     // MARK: SeriesMenuActions
 
@@ -178,7 +187,10 @@ public final class SeriesViewModel {
             let hidden = hiddenFilter()
             // `BookCondition` can exclude both libraries and whole series, so the only thing left for the
             // client-side guard here is an individually hidden *book* — pagination stays exact otherwise.
-            let conditions: [BookCondition] = [.seriesId(.isEqualTo(seriesId))] + hidden.bookConditions
+            var conditions: [BookCondition] = [.seriesId(.isEqualTo(seriesId))] + hidden.bookConditions
+            if !selectedTags.isEmpty {
+                conditions.append(.anyOf(selectedTags.sorted().map { .tag(.isEqualTo($0)) }))
+            }
             let search = KomgaBookSearch(condition: .allOf(conditions))
 
             let filter = downloadFilter
@@ -210,6 +222,15 @@ public final class SeriesViewModel {
 
     private func loadCollections() async {
         collections = (try? await api.seriesApi.getAllCollectionsBySeries(seriesId)) ?? []
+    }
+
+    /// Book tags of *this* series, for the filter menu. Nothing to scope for privacy: the screen is already
+    /// one series, and a hidden series is never reachable.
+    private func loadTags() async {
+        let tags = (try? await api.referentialApi.getBookTags(
+            seriesId: seriesId, readListId: nil, libraryIds: [])) ?? []
+        availableTags = tags.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        selectedTags.formIntersection(availableTags)
     }
 
     private func handle(_ event: KomgaEvent) {
@@ -256,7 +277,7 @@ struct SeriesScreen: View {
     private func content(_ series: KomgaSeries) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                SeriesHeader(series: series, library: model.library)
+                SeriesHeader(series: series, library: model.library, navigate: navigate)
                     .padding(.horizontal)
                 if let error = model.actionError {
                     Text(error).foregroundStyle(.red).font(.footnote).padding(.horizontal)
@@ -314,6 +335,10 @@ struct SeriesScreen: View {
                         Button("Delete downloaded books", role: .destructive) { offline.delete(series: model.seriesId) }
                     }
                 }
+                if !model.availableTags.isEmpty {
+                    Divider()
+                    tagFilterMenu
+                }
                 HideMenuButton(target: .series(model.seriesId))
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
@@ -321,6 +346,28 @@ struct SeriesScreen: View {
         }
         .onChange(of: model.sort) { Task { await model.onSortChange() } }
         .onChange(of: model.downloadFilter) { Task { await model.onDownloadFilterChange() } }
+        .onChange(of: model.selectedTags) { Task { await model.onTagFilterChange() } }
+    }
+
+    private var tagFilterMenu: some View {
+        Menu {
+            if !model.selectedTags.isEmpty {
+                Button("Clear tags") { model.selectedTags = [] }
+                Divider()
+            }
+            ForEach(model.availableTags, id: \.self) { tag in
+                Button { model.toggleTag(tag) } label: {
+                    if model.selectedTags.contains(tag) {
+                        Label(tag, systemImage: "checkmark")
+                    } else {
+                        Text(tag)
+                    }
+                }
+            }
+        } label: {
+            Label("Tags", systemImage: model.selectedTags.isEmpty
+                ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+        }
     }
 
     /// First unfinished book on the current page (Kotlin's "read" shortcut picks the in-progress/unread one).
@@ -352,6 +399,7 @@ struct SeriesScreen: View {
 struct SeriesHeader: View {
     let series: KomgaSeries
     let library: KomgaLibrary?
+    let navigate: (Destination) -> Void
     @State private var summaryExpanded = false
 
     var body: some View {
@@ -388,31 +436,10 @@ struct SeriesHeader: View {
                     .lineLimit(summaryExpanded ? nil : 4)
                     .onTapGesture { summaryExpanded.toggle() }
             }
-            ChipRow(title: "Genres", values: series.metadata.genres)
-            ChipRow(title: "Tags", values: series.metadata.tags)
+            // Tags and genres browse; authors do not — there is no author destination.
+            ChipRow(title: "Genres", values: series.metadata.genres) { navigate(.facet(.genre($0))) }
+            ChipRow(title: "Tags", values: series.metadata.tags) { navigate(.facet(.tag($0))) }
             ChipRow(title: "Authors", values: Array(Set(series.booksMetadata.authors.map(\.name))).sorted())
-        }
-    }
-}
-
-struct ChipRow: View {
-    let title: LocalizedStringKey
-    let values: [String]
-
-    var body: some View {
-        if !values.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.caption.bold()).foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(values, id: \.self) { value in
-                            Text(value).font(.caption)
-                                .padding(.horizontal, 8).padding(.vertical, 4)
-                                .background(.quaternary, in: Capsule())
-                        }
-                    }
-                }
-            }
         }
     }
 }

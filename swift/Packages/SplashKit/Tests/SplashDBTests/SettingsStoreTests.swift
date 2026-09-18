@@ -19,8 +19,25 @@ import Testing
         changed.bookPageLoadSize = 100
         changed.bookListLayout = .list
         changed.appTheme = .light
+        changed.lastLibraryId = "lib-1"
         try await store.save(changed)  // upsert: still one row
         #expect(try await store.load() == changed)
+    }
+
+    /// `last_library_id` arrived in the v3 migration, so every row written before it reads back as NULL —
+    /// which must mean "All Libraries", not a decoding failure.
+    @Test func lastLibraryIsOptional() async throws {
+        let database = try SplashDatabase.inMemory()
+        let store = GRDBAppSettingsStore(database.app)
+        var settings = AppSettings()
+        settings.lastLibraryId = "lib-1"
+        try await store.save(settings)
+        #expect(try await store.load()?.lastLibraryId == "lib-1")
+
+        try await database.app.write { db in
+            try db.execute(sql: "UPDATE AppSettings SET last_library_id = NULL")
+        }
+        #expect(try await store.load()?.lastLibraryId == nil)
     }
 
     @Test func imageReaderSettingsRoundTrip() async throws {

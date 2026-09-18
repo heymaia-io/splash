@@ -40,6 +40,10 @@ public enum KomgaSeriesSort {
     public static func byReleaseDate(_ d: KomgaSort.Direction) -> KomgaSort { .by("booksMetadata.releaseDate", d) }
     public static func byFolderName(_ d: KomgaSort.Direction) -> KomgaSort { .by("name", d) }
     public static func byBooksCount(_ d: KomgaSort.Direction) -> KomgaSort { .by("booksCount", d) }
+    /// Komga's `SeriesDtoDao` maps `"random"` to `DSL.rand()`, and the offline mirror to SQLite `RANDOM()`.
+    /// Direction is irrelevant to the server, so there is no parameter. Note the ordering is re-rolled per
+    /// request: a random sort can be *shown*, but not paged through.
+    public static func random() -> KomgaSort { .by("random", .asc) }
 }
 
 /// `KomgaSort.KomgaBooksSort` factories.

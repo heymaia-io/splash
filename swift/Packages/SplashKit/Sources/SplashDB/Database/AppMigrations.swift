@@ -78,6 +78,10 @@ enum AppMigrations {
                 );
                 """)
         }
+        // [NUEVO] The library the Library tab reopens on. Appended, never edit v1.
+        migrator.registerMigration("v3_last_library") { db in
+            try db.execute(sql: "ALTER TABLE AppSettings ADD COLUMN last_library_id TEXT;")
+        }
         return migrator
     }
 
