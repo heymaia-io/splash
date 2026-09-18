@@ -9,7 +9,8 @@ import Testing
 
         let urls = settings.values(\.serverUrl)
         var iterator = urls.makeAsyncIterator()
-        #expect(await iterator.next() == "http://localhost:25600")
+        // A fresh install has no server yet; the login form shows its placeholder instead of a guess.
+        #expect(await iterator.next() == "")
 
         try await settings.set(\.cardWidth, 200)  // different field: no url emission
         try await settings.set(\.serverUrl, "https://komga.example")
