@@ -210,35 +210,75 @@ struct ImageReaderSettingsView: View {
 struct AccountSettingsView: View {
     let session: any AppSession
     let onLoggedOut: () -> Void
-    @State private var newPassword = ""
-    @State private var message: String?
+    @State private var serverInfo: KomgaServerInfo?
+
+    private var user: KomgaUser? { session.authState.authenticatedUser }
+    private var isAdmin: Bool { user?.isAdmin ?? false }
 
     var body: some View {
         Form {
-            if let user = session.authState.authenticatedUser {
-                Section {
+            if let user {
+                Section("Account") {
                     LabeledContent("Email", value: user.email)
-                    LabeledContent("Server", value: session.settings.value.serverUrl)
                     LabeledContent("Roles", value: user.roles.sorted().joined(separator: ", "))
-                }
-            }
-            Section("Change password") {
-                SecureField("New password", text: $newPassword)
-                    .textContentType(.newPassword)
-                Button("Update password") {
-                    Task {
-                        do {
-                            try await session.viewModelFactory.apiProvider().userApi.updateMyPassword(newPassword)
-                            newPassword = ""
-                            message = String(localized: "Password updated")
-                        } catch {
-                            message = error.localizedDescription
-                        }
+                    if let restriction = user.ageRestriction {
+                        LabeledContent("Age restriction", value: restriction.summary)
                     }
                 }
-                .disabled(newPassword.count < 1)
-                if let message { Text(message).font(.footnote) }
+
+                Section {
+                    LabeledContent("Libraries") {
+                        Text(libraryAccess(user))
+                            .multilineTextAlignment(.trailing)
+                    }
+                    if !user.labelsAllow.isEmpty {
+                        LabeledContent("Only labels", value: user.labelsAllow.sorted().joined(separator: ", "))
+                    }
+                    if !user.labelsExclude.isEmpty {
+                        LabeledContent("Excluded labels", value: user.labelsExclude.sorted().joined(separator: ", "))
+                    }
+                } header: {
+                    Text("Access")
+                } footer: {
+                    Text("What this account is allowed to see. Only a server administrator can change it.")
+                }
             }
+
+            Section {
+                LabeledContent("Address", value: session.settings.value.serverUrl)
+                if let serverInfo {
+                    if let version = serverInfo.version { LabeledContent("Komga", value: version) }
+                    if let commit = serverInfo.gitCommitId {
+                        LabeledContent("Build", value: [serverInfo.gitBranch, commit].compactMap(\.self).joined(separator: " · "))
+                    }
+                    if let java = serverInfo.javaVersion {
+                        LabeledContent("Java", value: [java, serverInfo.javaVendor].compactMap(\.self).joined(separator: " · "))
+                    }
+                    if let os = serverInfo.osName {
+                        LabeledContent("Host", value: [os, serverInfo.osVersion, serverInfo.osArch].compactMap(\.self).joined(separator: " · "))
+                    }
+                }
+            } header: {
+                Text("Server")
+            } footer: {
+                // Komga only exposes /actuator/info to admins, so there is simply nothing more to show
+                // for a regular account — better to say so than to leave an unexplained gap.
+                Text(isAdmin
+                     ? "Reported by your Komga server."
+                     : "Your Komga server only reports its version to administrators.")
+            }
+
+            Section {
+                // Passwords are deliberately not changeable here: Komga's own web UI already does it
+                // properly, and doing it safely needs current-password re-entry and confirmation that a
+                // reading app has no business owning.
+                Link(destination: URL(string: session.settings.value.serverUrl) ?? URL(string: "https://komga.org")!) {
+                    Label("Manage this account on the server", systemImage: "safari")
+                }
+            } footer: {
+                Text("Password changes and account settings live in the Komga web interface.")
+            }
+
             Section {
                 Button("Log out", role: .destructive) {
                     Task {
@@ -249,6 +289,20 @@ struct AccountSettingsView: View {
             }
         }
         .navigationTitle("My account")
+        .task {
+            guard isAdmin, serverInfo == nil else { return }
+            serverInfo = try? await session.viewModelFactory.apiProvider().actuatorApi.getInfo()
+        }
+    }
+
+    /// Names every library this account is allowed to see.
+    private func libraryAccess(_ user: KomgaUser) -> String {
+        guard !user.sharedAllLibraries else { return String(localized: "All libraries") }
+        let names = session.authState.libraries
+            .filter { user.sharedLibrariesIds.contains($0.id) }
+            .map(\.name)
+            .sorted()
+        return names.isEmpty ? String(localized: "None") : names.joined(separator: ", ")
     }
 }
 
