@@ -69,6 +69,7 @@ public final class SeriesViewModel {
         // available while locked, so this is the ordinary path, not an edge case.
         hiddenTask = listenHidden(to: hiddenChanges) { [weak self] in
             guard let self else { return }
+            await self.loadSeries()
             await self.loadBooks(page: self.currentPage)
         }
         await loadSeries()
@@ -112,6 +113,15 @@ public final class SeriesViewModel {
         if series == nil { state = .loading }
         do {
             var loaded = try await api.seriesApi.getOneSeries(seriesId)
+            // A detail screen bypasses every listing, so it refuses a hidden series itself — reached by a
+            // stale navigation stack, or by locking while viewing one. Same 404 the server gives for a
+            // series that does not exist: no separate "this is private" state, which would confirm to a
+            // snooper that there is something here.
+            guard !hiddenFilter().isHidden(series: loaded) else {
+                series = nil
+                books = []
+                throw KomgaAPIError.httpStatus(code: 404, body: Data())
+            }
             loaded.metadata.tags.sort()  // `withSortedTags()`
             loaded.metadata.genres.sort()
             series = loaded

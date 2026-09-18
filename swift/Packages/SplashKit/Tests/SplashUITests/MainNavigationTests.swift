@@ -30,6 +30,23 @@ import Testing
         #expect(nav.lastItem == .library(nil))
     }
 
+    /// Locking the private area returns you to the tab you were on, dropping only what was pushed on top.
+    /// Always jumping to Home would throw away the user's place for no reason.
+    @Test func popToRootKeepsTheCurrentTab() {
+        let navigator = MainNavigator(root: .downloads)
+        navigator.push(.series("s1"))
+        navigator.push(.book("b1"))
+
+        navigator.popToRoot()
+        #expect(navigator.stack.isEmpty)
+        #expect(navigator.root == .downloads)
+        #expect(navigator.lastItem == .downloads)
+
+        // Idempotent: locking twice must not disturb the tab.
+        navigator.popToRoot()
+        #expect(navigator.root == .downloads)
+    }
+
     @Test func deleteEventsUnwindScreens() {
         let vm = MainScreenViewModel(authState: KomgaAuthenticationState())
         let nav = vm.navigator

@@ -101,14 +101,6 @@ public struct AppRootView: View {
         // [NUEVO] The app-switcher snapshot is taken while `.inactive`; without this it would preserve
         // everything the feature hides, in a thumbnail the user cannot dismiss.
         .privacyBlur(isActive: (session.privacy?.isUnlocked ?? false) && scenePhase != .active)
-        .task {
-            // Being deep inside content that is about to vanish must eject you, or you are left on a detail
-            // screen for an item that no longer appears in any list.
-            session.privacy?.onLock = { [weak mainModel] in
-                mainModel?.navigator.replaceAll(.home)
-                mainModel?.searchQuery = ""
-            }
-        }
     }
 
     private func main(_ model: MainScreenViewModel) -> some View {
@@ -123,11 +115,32 @@ public struct AppRootView: View {
             default:
                 DestinationView(
                     destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
-                    api: model.navigator.root == .downloads ? session.offlineApi : nil,
+                    // Only the Downloads shelf itself is pinned to the offline store. A series or book
+                    // pushed from it uses the active API, so tapping a cover shows the *whole* series and
+                    // not just the downloaded books. In offline mode the active API is the offline one, so
+                    // that degrades to the downloaded books rather than failing; if the server is simply
+                    // unreachable the screen shows its usual connection error with a downloads fallback.
+                    api: destination == .downloads ? session.offlineApi : nil,
                     onRead: { open($0) })
             }
         }
         .task {
+            // Set here, not in `body`: `body` runs while `mainModel` is still nil, so capturing it there
+            // installed a closure that could never navigate and the user was left staring at a detail
+            // screen for content that had just been hidden.
+            //
+            // Returns to the tab they were on — Home, Library or Downloads — rather than always Home,
+            // dropping only what was pushed on top of it. A root that is itself hidden falls back to Home.
+            session.privacy?.onLock = { [weak model] in
+                guard let model else { return }
+                let filter = session.privacy?.filter() ?? .disabled
+                if case .library(let id) = model.navigator.root, filter.isHidden(libraryId: id) {
+                    model.navigator.replaceAll(.home)
+                } else {
+                    model.navigator.popToRoot()
+                }
+                model.searchQuery = ""
+            }
             if let initialBook, !openedInitialBook {
                 openedInitialBook = true
                 open(initialBook)

@@ -48,6 +48,9 @@ public final class MainNavigator {
         stack = []
     }
 
+    /// Drops everything pushed on top of the current tab, keeping the tab itself.
+    public func popToRoot() { stack = [] }
+
     /// Pops until `predicate` matches the top item; returns false (stack unchanged below root) if none did.
     @discardableResult
     public func popUntil(_ predicate: (Destination) -> Bool) -> Bool {
