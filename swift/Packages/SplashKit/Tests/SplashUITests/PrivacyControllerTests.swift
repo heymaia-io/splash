@@ -163,6 +163,29 @@ final class FakeAccessPolicy: PremiumAccessPolicy {
         #expect(controller.filter().hidden.series == [KomgaSeriesId("s1")])
     }
 
+    /// The filter every *screen* uses comes from `ViewModelFactory`, not from the controller directly.
+    /// When the factory held its own copy of the rule it knew what was hidden but not that the area had
+    /// been unlocked, so unlocking revealed nothing anywhere. This asserts the two cannot drift again.
+    @Test func theFactoryFilterTracksTheController() async throws {
+        var content = HiddenContent()
+        content.libraries = [KomgaLibraryId("lib-a")]
+        let (controller, _, _) = try await make(hidden: content)
+
+        let factory = ViewModelFactory(
+            apiProvider: { fatalError("unused") },
+            settings: SettingsState(initial: AppSettings(), save: { _ in }),
+            imageReaderSettings: SettingsState(initial: ImageReaderSettings(), save: { _ in }),
+            homeFilters: SettingsState(initial: [], save: { _ in }),
+            authState: KomgaAuthenticationState(),
+            events: KomgaEventBroadcaster(),
+            thumbnails: nil,
+            hiddenFilter: { controller.filter() })
+
+        #expect(factory.hiddenFilter()().isHidden(libraryId: KomgaLibraryId("lib-a")))
+        await controller.requestReveal()
+        #expect(!factory.hiddenFilter()().isHidden(libraryId: KomgaLibraryId("lib-a")))
+    }
+
     @Test func filterIsDisabledWhenTheHiddenSetBelongsToAnotherServer() async throws {
         var other = HiddenContent()
         other.serverUrl = "http://somewhere.else"

@@ -63,7 +63,9 @@ public final class AppModule: AppSession {
         authState: authState,
         events: events,
         thumbnails: thumbnails,
-        hiddenContent: hiddenContent)
+        hiddenContent: hiddenContent,
+        // Routed through the controller so the unlock state is consulted in exactly one place.
+        hiddenFilter: { [unowned self] in self.privacy?.filter() ?? .disabled })
 
     /// The API every screen uses: remote, or the offline implementation while in offline mode.
     public var api: any KomgaApi { apiHolder.current }

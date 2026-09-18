@@ -19,6 +19,9 @@ public final class ViewModelFactory {
     public let thumbnails: ThumbnailLoader?
     /// The private-content set. Screens read it per fetch so hiding something refreshes them live.
     public let hiddenContent: HiddenContentRepository
+    /// Supplied by the composition root so it resolves to `PrivacyController.filter()` — the one place
+    /// that knows both what is hidden *and* whether the private area is currently unlocked.
+    private let hiddenFilterProvider: @MainActor () -> HiddenContentFilter
 
     public init(
         apiProvider: @escaping @MainActor () -> any KomgaApi,
@@ -29,7 +32,8 @@ public final class ViewModelFactory {
         events: KomgaEventSource,
         thumbnails: ThumbnailLoader?,
         // Defaults to an inert in-memory set so previews and tests need not wire privacy at all.
-        hiddenContent: HiddenContentRepository = SettingsState(initial: HiddenContent(), save: { _ in })
+        hiddenContent: HiddenContentRepository = SettingsState(initial: HiddenContent(), save: { _ in }),
+        hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }
     ) {
         self.apiProvider = apiProvider
         self.settings = settings
@@ -39,23 +43,16 @@ public final class ViewModelFactory {
         self.events = events
         self.thumbnails = thumbnails
         self.hiddenContent = hiddenContent
+        self.hiddenFilterProvider = hiddenFilter
     }
 
-    /// A *provider*, not a snapshot: screens call it on every fetch so hiding something takes effect
-    /// without rebuilding the view model.
+    /// A *provider*, not a snapshot: screens call it on every fetch, so both hiding something and
+    /// unlocking the private area take effect without rebuilding the view model.
     ///
-    /// Note this is the factory's own copy of the rule, not `PrivacyController.filter()` — the factory
-    /// deliberately knows nothing about lock state. The shell rebuilds screens when that flips, so a
-    /// view model only ever needs to know what is hidden, never whether it is currently revealed.
-    func hiddenFilter() -> @MainActor () -> HiddenContentFilter {
-        let repository = hiddenContent
-        let settings = self.settings
-        return {
-            let hidden = repository.value
-            guard hidden.applies(to: settings.value.serverUrl) else { return .disabled }
-            return HiddenContentFilter(hidden: hidden)
-        }
-    }
+    /// It must resolve to `PrivacyController.filter()` and nothing else. A second copy of the rule here
+    /// is precisely how unlocking stopped revealing anything: the copy knew what was hidden but not that
+    /// it had been revealed, so every screen kept filtering.
+    func hiddenFilter() -> @MainActor () -> HiddenContentFilter { hiddenFilterProvider }
 
     /// Emits whenever the private set changes, so browsing screens can reload themselves.
     func hiddenChanges() -> AsyncStream<HiddenContent> { hiddenContent.values() }
