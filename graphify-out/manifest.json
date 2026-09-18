@@ -1,272 +1,922 @@
 {
-  "swift/Komelia/App/KomeliaApp.swift": {
-    "mtime": 1789633331.9952476,
-    "ast_hash": "147c53ba3b63d19c9dcc171a1607ee10",
-    "semantic_hash": ""
+  "fixtures/komga/generate_library.py": {
+    "mtime": 1789632491.5557122,
+    "ast_hash": "0c22a0de0f4932969189ca977fe7b0dd",
+    "semantic_hash": "0c22a0de0f4932969189ca977fe7b0dd"
   },
-  "swift/Komelia/App/RootView.swift": {
-    "mtime": 1789633331.9993324,
-    "ast_hash": "78c5a8e1b810b487ceec56e5569e610a",
-    "semantic_hash": ""
+  "fixtures/komga/openapi.json": {
+    "mtime": 1789670381.7416708,
+    "ast_hash": "df429770f16f43c47006cb5a46778553",
+    "semantic_hash": "df429770f16f43c47006cb5a46778553"
   },
-  "swift/Komelia/Resources/Assets.xcassets/AccentColor.colorset/Contents.json": {
-    "mtime": 1789633332.0097673,
-    "ast_hash": "a751c16c7ee756dcdc4c9f297fc852d3",
-    "semantic_hash": ""
+  "fixtures/komga/setup.sh": {
+    "mtime": 1789648292.0505407,
+    "ast_hash": "b7e7009c6a8d75f64cf4a00df519bcbc",
+    "semantic_hash": "b7e7009c6a8d75f64cf4a00df519bcbc"
   },
-  "swift/Komelia/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json": {
-    "mtime": 1789633332.0065868,
-    "ast_hash": "7aab24daf03c74b2c445a70f049a7aac",
-    "semantic_hash": ""
+  "swift/Packages/SplashEpubKit/Package.swift": {
+    "mtime": 1789670171.3484783,
+    "ast_hash": "f03c61a6e45179cae8ae47fae68d3f48",
+    "semantic_hash": "f03c61a6e45179cae8ae47fae68d3f48"
   },
-  "swift/Komelia/Resources/Assets.xcassets/Contents.json": {
-    "mtime": 1789633332.0032601,
-    "ast_hash": "6f266f38436c1b8465f1c0b241ffd07e",
-    "semantic_hash": ""
+  "swift/Packages/SplashEpubKit/Sources/SplashEpubKit/ReadiumEpubReader.swift": {
+    "mtime": 1789670171.3492463,
+    "ast_hash": "c2c177e8059d1fb425e6bae30c2566d6",
+    "semantic_hash": "c2c177e8059d1fb425e6bae30c2566d6"
   },
-  "swift/Packages/KomeliaKit/Package.swift": {
-    "mtime": 1789632859.9367778,
-    "ast_hash": "6514deeedecbe368bde65e6f1f1eb789",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Package.swift": {
+    "mtime": 1789670171.3497624,
+    "ast_hash": "6c86099472bf1d6c1401b2386870fa24",
+    "semantic_hash": "6c86099472bf1d6c1401b2386870fa24"
   },
-  "swift/Packages/KomeliaKit/Sources/KomeliaCore/KomeliaCore.swift": {
-    "mtime": 1789632859.9372609,
-    "ast_hash": "17af3745ebd2036c508054ba8dadcfb2",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Book.swift": {
+    "mtime": 1789670171.372406,
+    "ast_hash": "36bf8c6ffa35cde717232a5411b716b8",
+    "semantic_hash": "36bf8c6ffa35cde717232a5411b716b8"
   },
-  "swift/Packages/KomeliaKit/Sources/KomeliaDB/KomeliaDB.swift": {
-    "mtime": 1789632859.9373453,
-    "ast_hash": "c45c666743514e5fd878eda7ace37a60",
-    "semantic_hash": ""
-  },
-  "swift/Packages/KomeliaKit/Sources/KomeliaImage/KomeliaImage.swift": {
-    "mtime": 1789632859.9375281,
-    "ast_hash": "07e4713ca4f3fc3b1d49d86bbf8ba4f2",
-    "semantic_hash": ""
-  },
-  "swift/Packages/KomeliaKit/Sources/KomeliaOffline/KomeliaOffline.swift": {
-    "mtime": 1789632859.9374318,
-    "ast_hash": "85f2782cde0a6ace764a58ca6e697042",
-    "semantic_hash": ""
-  },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Book.swift": {
-    "mtime": 1789632990.841335,
-    "ast_hash": "44a6d0393d734291d7efc341e662770b",
-    "semantic_hash": ""
-  },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Coding.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Coding.swift": {
     "mtime": 1789633591.5179894,
     "ast_hash": "fae4942418d6eb05a05db8f8975a84d7",
-    "semantic_hash": ""
+    "semantic_hash": "fae4942418d6eb05a05db8f8975a84d7"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Collections.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Collections.swift": {
     "mtime": 1789633048.6744144,
     "ast_hash": "9e67fe1bcdee77f009b125873936efa2",
-    "semantic_hash": ""
+    "semantic_hash": "9e67fe1bcdee77f009b125873936efa2"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Identifiers.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Identifiers.swift": {
     "mtime": 1789632911.6477454,
     "ast_hash": "09e8708652068c57f8cd64ebd29c7fd6",
-    "semantic_hash": ""
+    "semantic_hash": "09e8708652068c57f8cd64ebd29c7fd6"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/KomgaEvent.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/KomgaEvent.swift": {
     "mtime": 1789633168.566098,
     "ast_hash": "ccb46b0dec7152b473a134b2e59e0e7a",
-    "semantic_hash": ""
+    "semantic_hash": "ccb46b0dec7152b473a134b2e59e0e7a"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Library.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Library.swift": {
     "mtime": 1789633032.8961453,
     "ast_hash": "fc474ceadf99275f6d45497adbe68958",
-    "semantic_hash": ""
+    "semantic_hash": "fc474ceadf99275f6d45497adbe68958"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Page.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Page.swift": {
     "mtime": 1789632954.413001,
     "ast_hash": "81a9a913064b5b00649c2a098eeae4a2",
-    "semantic_hash": ""
+    "semantic_hash": "81a9a913064b5b00649c2a098eeae4a2"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/PatchValue.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/PatchValue.swift": {
     "mtime": 1789632935.928128,
     "ast_hash": "ccf59af7f0bf74abac608c984f43039a",
-    "semantic_hash": ""
+    "semantic_hash": "ccf59af7f0bf74abac608c984f43039a"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Readium.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Readium.swift": {
     "mtime": 1789633591.5178254,
     "ast_hash": "08049f125a032be7ca6fd1a5ca6feda8",
-    "semantic_hash": ""
+    "semantic_hash": "08049f125a032be7ca6fd1a5ca6feda8"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Series.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Series.swift": {
     "mtime": 1789633014.3574128,
     "ast_hash": "48c18b47824fc8d677aaee3c154c7572",
-    "semantic_hash": ""
+    "semantic_hash": "48c18b47824fc8d677aaee3c154c7572"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/Sort.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Server.swift": {
+    "mtime": 1789703473.7733076,
+    "ast_hash": "6cd5d36efdb459b0ac881f4918d4716e",
+    "semantic_hash": "6cd5d36efdb459b0ac881f4918d4716e"
+  },
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/Sort.swift": {
     "mtime": 1789632965.9388022,
     "ast_hash": "0bebfcc9b9ae81d4bca9f337e5b18aae",
-    "semantic_hash": ""
+    "semantic_hash": "0bebfcc9b9ae81d4bca9f337e5b18aae"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Models/User.swift": {
-    "mtime": 1789633071.8141475,
-    "ast_hash": "013746563c707cf590fefcc141991894",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Models/User.swift": {
+    "mtime": 1789703473.813177,
+    "ast_hash": "b7079f02e5b869e92a78596b1b7275d2",
+    "semantic_hash": "b7079f02e5b869e92a78596b1b7275d2"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Protocols/KomgaApi.swift": {
-    "mtime": 1789633216.9693315,
-    "ast_hash": "b9ed45dc60f115696555aef72c7dc917",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Protocols/KomgaApi.swift": {
+    "mtime": 1789703473.813437,
+    "ast_hash": "631f08a2a11a8e5a72f6bc30f20cb745",
+    "semantic_hash": "631f08a2a11a8e5a72f6bc30f20cb745"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Protocols/Support.swift": {
-    "mtime": 1789633408.3861566,
-    "ast_hash": "96d1000902adfcd93270d9cbcb15cedb",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Protocols/Support.swift": {
+    "mtime": 1789688318.3246565,
+    "ast_hash": "f47ce3a6b43c2b60e14f5107101aa937",
+    "semantic_hash": "f47ce3a6b43c2b60e14f5107101aa937"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Search/SearchCondition.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Search/SearchCondition.swift": {
     "mtime": 1789633143.835727,
     "ast_hash": "ebac6c0596df4564e5c7eb4ed841305f",
-    "semantic_hash": ""
+    "semantic_hash": "ebac6c0596df4564e5c7eb4ed841305f"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaAPI/Search/SearchOperator.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaAPI/Search/SearchOperator.swift": {
     "mtime": 1789633230.041444,
     "ast_hash": "daeaae3df18c6872e42a89a4d8b3fbfb",
-    "semantic_hash": ""
+    "semantic_hash": "daeaae3df18c6872e42a89a4d8b3fbfb"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/Api/RemoteBookApi.swift": {
-    "mtime": 1789633480.4543445,
-    "ast_hash": "417e1f661a7b506377858744f5a5de7b",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaRemote/Api/RemoteBookApi.swift": {
+    "mtime": 1789670171.3776495,
+    "ast_hash": "a2d6b9477f70989a1bcbafd8a4238ccf",
+    "semantic_hash": "a2d6b9477f70989a1bcbafd8a4238ccf"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/Api/RemoteCollectionApis.swift": {
-    "mtime": 1789633517.9379153,
-    "ast_hash": "2dbbaa75508ec398f68e4f43701800a4",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaRemote/Api/RemoteCollectionApis.swift": {
+    "mtime": 1789670171.3769705,
+    "ast_hash": "5d90e2b0630b6d5e946b9892de3ca120",
+    "semantic_hash": "5d90e2b0630b6d5e946b9892de3ca120"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/Api/RemoteMiscApis.swift": {
-    "mtime": 1789633547.8166962,
-    "ast_hash": "f1c032c66d0626a154259386838e14df",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaRemote/Api/RemoteMiscApis.swift": {
+    "mtime": 1789703473.813597,
+    "ast_hash": "c4a24539be43bc9e361eaa6a01960c4e",
+    "semantic_hash": "c4a24539be43bc9e361eaa6a01960c4e"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/Api/RemoteSeriesApi.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaRemote/Api/RemoteSeriesApi.swift": {
     "mtime": 1789633493.73348,
     "ast_hash": "a0a4646a16e085fe82c2912e93700fb9",
-    "semantic_hash": ""
+    "semantic_hash": "a0a4646a16e085fe82c2912e93700fb9"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/HTTP/KomgaCookieStore.swift": {
-    "mtime": 1789633448.093279,
-    "ast_hash": "e05c23105f19f9a9cad8b9609726f3c5",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaRemote/HTTP/KomgaCookieStore.swift": {
+    "mtime": 1789670171.3760157,
+    "ast_hash": "c34dbd36a3d3756092a967b9912421d8",
+    "semantic_hash": "c34dbd36a3d3756092a967b9912421d8"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/HTTP/KomgaHTTPClient.swift": {
-    "mtime": 1789633591.5174701,
-    "ast_hash": "e9d00e4b605cfcd539a174f60a522542",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaRemote/HTTP/KomgaHTTPClient.swift": {
+    "mtime": 1789670171.3754778,
+    "ast_hash": "b62e228cae12b217f0d72a8124a18d59",
+    "semantic_hash": "b62e228cae12b217f0d72a8124a18d59"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/HTTP/MultipartForm.swift": {
-    "mtime": 1789633591.517676,
-    "ast_hash": "6e45a6f358602240df9f65cdb2913919",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaRemote/HTTP/MultipartForm.swift": {
+    "mtime": 1789670203.1998672,
+    "ast_hash": "f0a36b7b16f3b120ec7bfea1e230bb7d",
+    "semantic_hash": "f0a36b7b16f3b120ec7bfea1e230bb7d"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/RemoteKomgaApi.swift": {
-    "mtime": 1789633578.1726577,
-    "ast_hash": "2d21e7c56170a1be8ed4cbf171c36460",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Sources/KomgaRemote/RemoteKomgaApi.swift": {
+    "mtime": 1789652042.5234497,
+    "ast_hash": "2be6eea49d92ab4a3b15ba095d6ef540",
+    "semantic_hash": "2be6eea49d92ab4a3b15ba095d6ef540"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/SSE/RemoteSSESession.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaRemote/SSE/RemoteSSESession.swift": {
     "mtime": 1789633571.1930447,
     "ast_hash": "6d5da674684b7614fa9befe024269b17",
-    "semantic_hash": ""
+    "semantic_hash": "6d5da674684b7614fa9befe024269b17"
   },
-  "swift/Packages/KomeliaKit/Sources/KomgaRemote/SSE/ServerSentEventParser.swift": {
+  "swift/Packages/SplashKit/Sources/KomgaRemote/SSE/ServerSentEventParser.swift": {
     "mtime": 1789633564.196274,
     "ast_hash": "1657c351e003fcc7ae1eed17c0877de8",
-    "semantic_hash": ""
+    "semantic_hash": "1657c351e003fcc7ae1eed17c0877de8"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/EncodingTests.swift": {
+  "swift/Packages/SplashKit/Sources/SplashAppShared/AppModule.swift": {
+    "mtime": 1789703411.741382,
+    "ast_hash": "d42792e8511ab7574c955ec710374bcb",
+    "semantic_hash": "d42792e8511ab7574c955ec710374bcb"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Auth/ApiKeyStore.swift": {
+    "mtime": 1789633959.7489457,
+    "ast_hash": "39673e87d8649f72ecb572ff5a0632d7",
+    "semantic_hash": "39673e87d8649f72ecb572ff5a0632d7"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Auth/KeychainSecretsRepository.swift": {
+    "mtime": 1789670171.4007952,
+    "ast_hash": "333bf97080d6c52a7204293367b4d4d5",
+    "semantic_hash": "333bf97080d6c52a7204293367b4d4d5"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Auth/KomgaAuthenticationState.swift": {
+    "mtime": 1789633959.7521186,
+    "ast_hash": "040e42f2abfbc4c237aa95dc421760f7",
+    "semantic_hash": "040e42f2abfbc4c237aa95dc421760f7"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/HomeFilters/HomeScreenFilter.swift": {
+    "mtime": 1789634269.8933003,
+    "ast_hash": "bca347805a5a8492c59c7b3528166b83",
+    "semantic_hash": "bca347805a5a8492c59c7b3528166b83"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Image/ThumbnailLoader.swift": {
+    "mtime": 1789688337.514099,
+    "ast_hash": "f5ae33faede3fe606e321871dd548403",
+    "semantic_hash": "f5ae33faede3fe606e321871dd548403"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Image/ThumbnailRequest.swift": {
+    "mtime": 1789634183.5839489,
+    "ast_hash": "a53852608343c528ce26b2d80f5142e5",
+    "semantic_hash": "a53852608343c528ce26b2d80f5142e5"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Settings/SettingsModels.swift": {
+    "mtime": 1789681077.581209,
+    "ast_hash": "ab0b5a6240617e24943da807d84c54f0",
+    "semantic_hash": "ab0b5a6240617e24943da807d84c54f0"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Settings/SettingsRepositories.swift": {
+    "mtime": 1789633820.5402794,
+    "ast_hash": "e1cbe8e8e17f1c8bb17443095cdd2380",
+    "semantic_hash": "e1cbe8e8e17f1c8bb17443095cdd2380"
+  },
+  "swift/Packages/SplashKit/Sources/SplashCore/Settings/SettingsState.swift": {
+    "mtime": 1789670171.4000537,
+    "ast_hash": "69952b220a33fe3eaefb083a88504f3e",
+    "semantic_hash": "69952b220a33fe3eaefb083a88504f3e"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Database/AppMigrations.swift": {
+    "mtime": 1789703411.741595,
+    "ast_hash": "f9987387ca0601fcdb8def67005e868f",
+    "semantic_hash": "f9987387ca0601fcdb8def67005e868f"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Database/OfflineMigrations.swift": {
+    "mtime": 1789651371.809529,
+    "ast_hash": "949669f07643446efa2d182fbf30ced0",
+    "semantic_hash": "949669f07643446efa2d182fbf30ced0"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Database/SplashDatabase.swift": {
+    "mtime": 1789670171.3648348,
+    "ast_hash": "167563fc6d092da61a3417bbcfbfc0b4",
+    "semantic_hash": "167563fc6d092da61a3417bbcfbfc0b4"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Dto/GRDBBookDtoRepository.swift": {
+    "mtime": 1789670171.366805,
+    "ast_hash": "5fb89086d7561a3df889b68a32489ea1",
+    "semantic_hash": "5fb89086d7561a3df889b68a32489ea1"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Dto/GRDBSeriesDtoRepository.swift": {
+    "mtime": 1789670171.3678465,
+    "ast_hash": "44e7ea4a67b11691804707b19b72b55e",
+    "semantic_hash": "44e7ea4a67b11691804707b19b72b55e"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Dto/SearchHelpers.swift": {
+    "mtime": 1789651371.809705,
+    "ast_hash": "fd333414330fe3f2f3d0df29fd018f16",
+    "semantic_hash": "fd333414330fe3f2f3d0df29fd018f16"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Dto/SearchSQL.swift": {
+    "mtime": 1789651371.809683,
+    "ast_hash": "729504da14d81496d4ac6e0a54b2d822",
+    "semantic_hash": "729504da14d81496d4ac6e0a54b2d822"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/OfflineDomainAdapters.swift": {
+    "mtime": 1789670171.366195,
+    "ast_hash": "46d358504562f1dcea9d539b691a647d",
+    "semantic_hash": "46d358504562f1dcea9d539b691a647d"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/OfflineRecords.swift": {
+    "mtime": 1789651371.809568,
+    "ast_hash": "5e04004caa48c0e1398f878267e1f354",
+    "semantic_hash": "5e04004caa48c0e1398f878267e1f354"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/OfflineSettings.swift": {
+    "mtime": 1789670171.365567,
+    "ast_hash": "10741acc0ccd7aed39e3b8ac811828bd",
+    "semantic_hash": "10741acc0ccd7aed39e3b8ac811828bd"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/OfflineTaskQueue.swift": {
+    "mtime": 1789651371.80961,
+    "ast_hash": "55fef620afdd6e9dfcb48cefa95854e7",
+    "semantic_hash": "55fef620afdd6e9dfcb48cefa95854e7"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Repositories/GRDBBookRepositories.swift": {
+    "mtime": 1789670171.3697422,
+    "ast_hash": "376e53efc6b82685590230e55882ebb2",
+    "semantic_hash": "376e53efc6b82685590230e55882ebb2"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Repositories/GRDBOfflineDataStore.swift": {
+    "mtime": 1789670171.3702304,
+    "ast_hash": "2a2d294602e2b71eed8a4d15480c3a48",
+    "semantic_hash": "2a2d294602e2b71eed8a4d15480c3a48"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Repositories/GRDBReadProgressRepository.swift": {
+    "mtime": 1789670171.3699915,
+    "ast_hash": "a14c372bb2c61e9f723b40e8d95e6f8e",
+    "semantic_hash": "a14c372bb2c61e9f723b40e8d95e6f8e"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Repositories/GRDBSeriesRepositories.swift": {
+    "mtime": 1789670171.369044,
+    "ast_hash": "476f5ab7e33747ddd154313078e87041",
+    "semantic_hash": "476f5ab7e33747ddd154313078e87041"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Offline/Repositories/GRDBServerRepositories.swift": {
+    "mtime": 1789670171.3684409,
+    "ast_hash": "21d281619503a0ad57ac63826dcca21f",
+    "semantic_hash": "21d281619503a0ad57ac63826dcca21f"
+  },
+  "swift/Packages/SplashKit/Sources/SplashDB/Settings/GRDBSettingsStores.swift": {
+    "mtime": 1789703411.7418714,
+    "ast_hash": "85f7fe8d7a8655875d91eb536ad5cb81",
+    "semantic_hash": "85f7fe8d7a8655875d91eb536ad5cb81"
+  },
+  "swift/Packages/SplashKit/Sources/SplashImage/PageImageLoader.swift": {
+    "mtime": 1789649120.9199154,
+    "ast_hash": "8b4a8e6f83ef99f12b9027be6f1f06d1",
+    "semantic_hash": "8b4a8e6f83ef99f12b9027be6f1f06d1"
+  },
+  "swift/Packages/SplashKit/Sources/SplashImage/PageRenderer.swift": {
+    "mtime": 1789652607.263337,
+    "ast_hash": "70e6059a8bbd5bb1be36e57210e6f6a6",
+    "semantic_hash": "70e6059a8bbd5bb1be36e57210e6f6a6"
+  },
+  "swift/Packages/SplashKit/Sources/SplashImage/ReaderImage.swift": {
+    "mtime": 1789649917.1452105,
+    "ast_hash": "20241228bb75b15f30809d5e7fa239fa",
+    "semantic_hash": "20241228bb75b15f30809d5e7fa239fa"
+  },
+  "swift/Packages/SplashKit/Sources/SplashImage/ReaderImageDecoder.swift": {
+    "mtime": 1789670171.3625383,
+    "ast_hash": "e17920ae9b07e02b2e6d33b980a037a9",
+    "semantic_hash": "e17920ae9b07e02b2e6d33b980a037a9"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Actions/BookActions.swift": {
+    "mtime": 1789651371.809003,
+    "ast_hash": "c500f49a17dde2cc3477d2addb841963",
+    "semantic_hash": "c500f49a17dde2cc3477d2addb841963"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Actions/DeletionOutcome.swift": {
+    "mtime": 1789651371.809048,
+    "ast_hash": "f75f79ca18e5443bdb1d55a893b8a380",
+    "semantic_hash": "f75f79ca18e5443bdb1d55a893b8a380"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Actions/LibraryServerUserActions.swift": {
+    "mtime": 1789651371.809023,
+    "ast_hash": "6f15e4935fe75ef3614e5e5d425658a3",
+    "semantic_hash": "6f15e4935fe75ef3614e5e5d425658a3"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Actions/ReadProgressActions.swift": {
+    "mtime": 1789651371.809303,
+    "ast_hash": "0d5c616f6de95155de6d9bc4626030f4",
+    "semantic_hash": "0d5c616f6de95155de6d9bc4626030f4"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Actions/SeriesActions.swift": {
+    "mtime": 1789651371.80928,
+    "ast_hash": "b8317b9a575fb1086c76fadd6555c9d3",
+    "semantic_hash": "b8317b9a575fb1086c76fadd6555c9d3"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Actions/SyncReadProgressAction.swift": {
+    "mtime": 1789651371.809252,
+    "ast_hash": "4d07fc0db693dfa05e082d2759a13107",
+    "semantic_hash": "4d07fc0db693dfa05e082d2759a13107"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Api/OfflineBookApi.swift": {
+    "mtime": 1789670171.3846123,
+    "ast_hash": "f7e738f734dcb4f7d5be02ece012db22",
+    "semantic_hash": "f7e738f734dcb4f7d5be02ece012db22"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Api/OfflineBookStates.swift": {
+    "mtime": 1789651371.809373,
+    "ast_hash": "a74995bd93bbe8d00770953749513ee1",
+    "semantic_hash": "a74995bd93bbe8d00770953749513ee1"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Api/OfflineKomgaApi.swift": {
+    "mtime": 1789703473.813748,
+    "ast_hash": "c8721e91c71f0b9d0c06bcafa76fd4b2",
+    "semantic_hash": "c8721e91c71f0b9d0c06bcafa76fd4b2"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Api/OfflineLibraryUserApis.swift": {
+    "mtime": 1789651371.80942,
+    "ast_hash": "afeed7e277a3bde9ba63221654331c16",
+    "semantic_hash": "afeed7e277a3bde9ba63221654331c16"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Api/OfflineSeriesApi.swift": {
+    "mtime": 1789651371.809352,
+    "ast_hash": "64b30acbd94678f56e56e352677f6d4d",
+    "semantic_hash": "64b30acbd94678f56e56e352677f6d4d"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Download/BookDownload.swift": {
+    "mtime": 1789651371.808795,
+    "ast_hash": "d6b7c6220ddf90e6d73738192ed8e538",
+    "semantic_hash": "d6b7c6220ddf90e6d73738192ed8e538"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Download/BookDownloadService.swift": {
+    "mtime": 1789651371.808856,
+    "ast_hash": "e1b59be97b99f46ff958a159c0c981c8",
+    "semantic_hash": "e1b59be97b99f46ff958a159c0c981c8"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Download/DownloadPathBuilder.swift": {
+    "mtime": 1789651371.808836,
+    "ast_hash": "e1ed44a16eaa61fc6cafa1a9067378ef",
+    "semantic_hash": "e1ed44a16eaa61fc6cafa1a9067378ef"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Download/FileHasher.swift": {
+    "mtime": 1789651371.808816,
+    "ast_hash": "fed159d2d176357106c5ca270fe124dc",
+    "semantic_hash": "fed159d2d176357106c5ca270fe124dc"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Download/OfflineDownloads.swift": {
+    "mtime": 1789651371.808879,
+    "ast_hash": "ab200de02525f7aac92f4490b12bb852",
+    "semantic_hash": "ab200de02525f7aac92f4490b12bb852"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Download/URLSessionDownloadManager.swift": {
+    "mtime": 1789670171.3822322,
+    "ast_hash": "7eb487b3d707f439c9bdcda208f1114d",
+    "semantic_hash": "7eb487b3d707f439c9bdcda208f1114d"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/MediaContainer/BookContentExtractors.swift": {
+    "mtime": 1789651938.5843196,
+    "ast_hash": "6c131b6111073ca0b3f77faa7f8f3de9",
+    "semantic_hash": "6c131b6111073ca0b3f77faa7f8f3de9"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/MediaContainer/PdfPageExtractor.swift": {
+    "mtime": 1789651371.808731,
+    "ast_hash": "5a7193a79f1c076c48e960790872099b",
+    "semantic_hash": "5a7193a79f1c076c48e960790872099b"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Model/OfflineBookModels.swift": {
+    "mtime": 1789651371.808963,
+    "ast_hash": "27460801298ec8262dc048ce69e8f199",
+    "semantic_hash": "27460801298ec8262dc048ce69e8f199"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Model/OfflineReadProgress.swift": {
+    "mtime": 1789651371.808943,
+    "ast_hash": "45c81377634d828e73f73212ec148363",
+    "semantic_hash": "45c81377634d828e73f73212ec148363"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Model/OfflineSeriesModels.swift": {
+    "mtime": 1789651371.808983,
+    "ast_hash": "3e337d7af4740aa0a59a635125989e83",
+    "semantic_hash": "3e337d7af4740aa0a59a635125989e83"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Model/OfflineServerModels.swift": {
+    "mtime": 1789651371.808922,
+    "ast_hash": "b9fb572cd98183d5c1e9c2927bd7c3e1",
+    "semantic_hash": "b9fb572cd98183d5c1e9c2927bd7c3e1"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/OfflineModule.swift": {
+    "mtime": 1789670171.3781052,
+    "ast_hash": "f03fe30e8a7f8ee7af86a3461801ec85",
+    "semantic_hash": "f03fe30e8a7f8ee7af86a3461801ec85"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Repository/OfflineDataStore.swift": {
+    "mtime": 1789651371.808588,
+    "ast_hash": "59a0d8395b231b758c2784581cb22874",
+    "semantic_hash": "59a0d8395b231b758c2784581cb22874"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Repository/OfflineDtoRepositories.swift": {
+    "mtime": 1789670171.37863,
+    "ast_hash": "de4de3b9173cff21d88fd139318c0170",
+    "semantic_hash": "de4de3b9173cff21d88fd139318c0170"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Repository/OfflineRepositoryProtocols.swift": {
+    "mtime": 1789651371.808567,
+    "ast_hash": "33c8e69c66d22502e4e7663f125d3355",
+    "semantic_hash": "33c8e69c66d22502e4e7663f125d3355"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Repository/OfflineSettingsRepository.swift": {
+    "mtime": 1789670171.3792093,
+    "ast_hash": "fc674090a3ea5de3e6d034dea3420c74",
+    "semantic_hash": "fc674090a3ea5de3e6d034dea3420c74"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Support/AsyncBroadcaster.swift": {
+    "mtime": 1789651371.808773,
+    "ast_hash": "66aadae8256798c06085a49be92daaa0",
+    "semantic_hash": "66aadae8256798c06085a49be92daaa0"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Support/OfflineEvents.swift": {
+    "mtime": 1789651371.808753,
+    "ast_hash": "a5c4c5292bbd4690a924fd280c64a489",
+    "semantic_hash": "a5c4c5292bbd4690a924fd280c64a489"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Sync/OfflineImportSource.swift": {
+    "mtime": 1789651371.809463,
+    "ast_hash": "8ed9527e08ac721b4ae21c779ca7965f",
+    "semantic_hash": "8ed9527e08ac721b4ae21c779ca7965f"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Sync/SyncManager.swift": {
+    "mtime": 1789651371.809443,
+    "ast_hash": "e10f09477b50307d46e83259c5dc9168",
+    "semantic_hash": "e10f09477b50307d46e83259c5dc9168"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Tasks/OfflineTaskEmitter.swift": {
+    "mtime": 1789651371.80864,
+    "ast_hash": "7d3ff97934c4e9c987453cf594521164",
+    "semantic_hash": "7d3ff97934c4e9c987453cf594521164"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Tasks/TaskData.swift": {
+    "mtime": 1789651371.808686,
+    "ast_hash": "9b4cbb68935dd5b0d97e3e233214f495",
+    "semantic_hash": "9b4cbb68935dd5b0d97e3e233214f495"
+  },
+  "swift/Packages/SplashKit/Sources/SplashOffline/Tasks/TaskProcessor.swift": {
+    "mtime": 1789651371.808661,
+    "ast_hash": "b7f556a114175c7690525ab2632d24ad",
+    "semantic_hash": "b7f556a114175c7690525ab2632d24ad"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Common/AppRootView.swift": {
+    "mtime": 1789703411.742386,
+    "ast_hash": "50ac716c631d80ade8b8dd3cf8da3e15",
+    "semantic_hash": "50ac716c631d80ade8b8dd3cf8da3e15"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Common/Cards.swift": {
+    "mtime": 1789703523.8221846,
+    "ast_hash": "1745193e48aa621e32f5b36fac40ffc0",
+    "semantic_hash": "1745193e48aa621e32f5b36fac40ffc0"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Common/Dependencies.swift": {
+    "mtime": 1789703411.7427435,
+    "ast_hash": "3d4a17ca6a64094756d44e1e2cd08a9c",
+    "semantic_hash": "3d4a17ca6a64094756d44e1e2cd08a9c"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Common/LoadState.swift": {
+    "mtime": 1789634321.3701434,
+    "ast_hash": "889106365535a29dd60457c08a3c0f29",
+    "semantic_hash": "889106365535a29dd60457c08a3c0f29"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Common/OfflineFallbackView.swift": {
+    "mtime": 1789688388.482733,
+    "ast_hash": "0ce0d0e9b616653fa461a3394b891411",
+    "semantic_hash": "0ce0d0e9b616653fa461a3394b891411"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Common/ThumbnailView.swift": {
+    "mtime": 1789670171.396384,
+    "ast_hash": "00d3ed456bc10ed3d4789cdff71f6c55",
+    "semantic_hash": "00d3ed456bc10ed3d4789cdff71f6c55"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Login/LoginView.swift": {
+    "mtime": 1789679974.8788314,
+    "ast_hash": "ea0df5f6714ce7c39aaadd9a7de3dd3b",
+    "semantic_hash": "ea0df5f6714ce7c39aaadd9a7de3dd3b"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Login/LoginViewModel.swift": {
+    "mtime": 1789679974.8790557,
+    "ast_hash": "ba12da110facea741e0c854e4ca79e33",
+    "semantic_hash": "ba12da110facea741e0c854e4ca79e33"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Navigation/MainNavigator.swift": {
+    "mtime": 1789701007.2885382,
+    "ast_hash": "ca80dc8fd7cd81fd5f8b2bd9523e2cfa",
+    "semantic_hash": "ca80dc8fd7cd81fd5f8b2bd9523e2cfa"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Navigation/MainScreenViewModel.swift": {
+    "mtime": 1789680109.740885,
+    "ast_hash": "cf18fa4b2c444100951076bb25645bbf",
+    "semantic_hash": "cf18fa4b2c444100951076bb25645bbf"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Navigation/MainShellView.swift": {
+    "mtime": 1789703411.7429514,
+    "ast_hash": "ab79c704554d1aa439f325c599224edc",
+    "semantic_hash": "ab79c704554d1aa439f325c599224edc"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Navigation/WindowSizeClass.swift": {
+    "mtime": 1789634106.8063629,
+    "ast_hash": "40ae9182ed0c6449406102bf590bffb5",
+    "semantic_hash": "40ae9182ed0c6449406102bf590bffb5"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Offline/DownloadViews.swift": {
+    "mtime": 1789703411.743154,
+    "ast_hash": "5a3d83fecd47098e89c38a45234589f8",
+    "semantic_hash": "5a3d83fecd47098e89c38a45234589f8"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Offline/OfflineController.swift": {
+    "mtime": 1789703411.7433465,
+    "ast_hash": "6042a1422938918be480ff80a9f6ae03",
+    "semantic_hash": "6042a1422938918be480ff80a9f6ae03"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Purchase/OfflineEntitlementStore.swift": {
+    "mtime": 1789703411.7434878,
+    "ast_hash": "6411835fad2d8daa25c264a78b4f0c37",
+    "semantic_hash": "6411835fad2d8daa25c264a78b4f0c37"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Purchase/PaywallView.swift": {
+    "mtime": 1789703411.7436755,
+    "ast_hash": "7fcc18be610759c217b29609e6509f2c",
+    "semantic_hash": "7fcc18be610759c217b29609e6509f2c"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Reader/ContinuousReaderModel.swift": {
+    "mtime": 1789670171.3890195,
+    "ast_hash": "288678be27b9d4c2a57644e26f21bf54",
+    "semantic_hash": "288678be27b9d4c2a57644e26f21bf54"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Reader/Epub/EpubReaderModel.swift": {
+    "mtime": 1789670214.2749798,
+    "ast_hash": "10a23b20fa3a983ec2c07e285abc7c07",
+    "semantic_hash": "10a23b20fa3a983ec2c07e285abc7c07"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Reader/PagedReaderModel.swift": {
+    "mtime": 1789670171.3882875,
+    "ast_hash": "2e4134cbe46d66ffccaf728a92f83b0c",
+    "semantic_hash": "2e4134cbe46d66ffccaf728a92f83b0c"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Reader/ReaderSettingsSheet.swift": {
+    "mtime": 1789670171.3886964,
+    "ast_hash": "14fde17f6901b084533644ded5c2472a",
+    "semantic_hash": "14fde17f6901b084533644ded5c2472a"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Reader/ReaderUIKitViews.swift": {
+    "mtime": 1789670171.3878622,
+    "ast_hash": "20bb5acecff5015de19ca7d5db71e96c",
+    "semantic_hash": "20bb5acecff5015de19ca7d5db71e96c"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Reader/ReaderView.swift": {
+    "mtime": 1789670171.3866951,
+    "ast_hash": "f46afb641db7fccf20c5fd864c4c1710",
+    "semantic_hash": "f46afb641db7fccf20c5fd864c4c1710"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Reader/ReaderViewModel.swift": {
+    "mtime": 1789670171.3870554,
+    "ast_hash": "c3d8979c9a6092b591e819d548432922",
+    "semantic_hash": "c3d8979c9a6092b591e819d548432922"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Reader/SpreadLayout.swift": {
+    "mtime": 1789670171.3861043,
+    "ast_hash": "a194f4a3df238913555e868ef9689fda",
+    "semantic_hash": "a194f4a3df238913555e868ef9689fda"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Screens/BookScreen.swift": {
+    "mtime": 1789703411.7438877,
+    "ast_hash": "76044985cd9061c4590eee55427df737",
+    "semantic_hash": "76044985cd9061c4590eee55427df737"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Screens/CollectionScreens.swift": {
+    "mtime": 1789703411.7440672,
+    "ast_hash": "698a7b6df581376a2f768ca87514630c",
+    "semantic_hash": "698a7b6df581376a2f768ca87514630c"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Screens/DestinationView.swift": {
+    "mtime": 1789703411.7442305,
+    "ast_hash": "4faef95ac8cbffce9d38189a50f55f87",
+    "semantic_hash": "4faef95ac8cbffce9d38189a50f55f87"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Screens/HomeScreen.swift": {
+    "mtime": 1789703411.7444162,
+    "ast_hash": "8818c7e87ee66efbd378ea4e007d7de0",
+    "semantic_hash": "8818c7e87ee66efbd378ea4e007d7de0"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Screens/LibraryScreen.swift": {
+    "mtime": 1789703411.7446299,
+    "ast_hash": "3e8e279962cd612bff45f506a2dea448",
+    "semantic_hash": "3e8e279962cd612bff45f506a2dea448"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Screens/SearchScreen.swift": {
+    "mtime": 1789703411.7447822,
+    "ast_hash": "73d68cd34617a05781a4cee0986c8ea8",
+    "semantic_hash": "73d68cd34617a05781a4cee0986c8ea8"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Screens/SeriesScreen.swift": {
+    "mtime": 1789703411.744971,
+    "ast_hash": "8132a44d0ab1713da0106fbca3eb9b12",
+    "semantic_hash": "8132a44d0ab1713da0106fbca3eb9b12"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Settings/LicensesView.swift": {
+    "mtime": 1789652934.1068308,
+    "ast_hash": "2e9c5a410932e79a4f7c48507cb43614",
+    "semantic_hash": "2e9c5a410932e79a4f7c48507cb43614"
+  },
+  "swift/Packages/SplashKit/Sources/SplashUI/Settings/SettingsView.swift": {
+    "mtime": 1789703506.4783025,
+    "ast_hash": "99560c7dc2577053b42e8d6624d3791f",
+    "semantic_hash": "99560c7dc2577053b42e8d6624d3791f"
+  },
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/EncodingTests.swift": {
     "mtime": 1789633282.4551826,
     "ast_hash": "2e89a9065886311c10d52741dfde7f7f",
-    "semantic_hash": ""
+    "semantic_hash": "2e89a9065886311c10d52741dfde7f7f"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/FixtureLoader.swift": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/FixtureLoader.swift": {
     "mtime": 1789633282.448845,
     "ast_hash": "af50613db783c9a4a2488fd2f8b95a56",
-    "semantic_hash": ""
+    "semantic_hash": "af50613db783c9a4a2488fd2f8b95a56"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/auth_activity_page.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/auth_activity_page.json": {
     "mtime": 1789633243.1670003,
     "ast_hash": "fe9927815e8d5ebed4911ca01025d7e9",
-    "semantic_hash": ""
+    "semantic_hash": "fe9927815e8d5ebed4911ca01025d7e9"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/book.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/book.json": {
     "mtime": 1789633241.992706,
     "ast_hash": "6531c168fa3604b61cab2b9ff6389482",
-    "semantic_hash": ""
+    "semantic_hash": "6531c168fa3604b61cab2b9ff6389482"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/book_pages.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/book_pages.json": {
     "mtime": 1789633242.1242268,
     "ast_hash": "182bf7551fe3e68d7eabf513c2244a70",
-    "semantic_hash": ""
+    "semantic_hash": "182bf7551fe3e68d7eabf513c2244a70"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/book_thumbnails.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/book_thumbnails.json": {
     "mtime": 1789633243.2667441,
     "ast_hash": "1460c980a948a9c74da809a9cd586ed7",
-    "semantic_hash": ""
+    "semantic_hash": "1460c980a948a9c74da809a9cd586ed7"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/books_page.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/books_page.json": {
     "mtime": 1789633242.435926,
     "ast_hash": "8912c001347559f99e067567b0164a86",
-    "semantic_hash": ""
+    "semantic_hash": "8912c001347559f99e067567b0164a86"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/collections_page.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/collections_page.json": {
     "mtime": 1789633242.8635046,
     "ast_hash": "32e7844c1876759e0a90882910125c92",
-    "semantic_hash": ""
+    "semantic_hash": "32e7844c1876759e0a90882910125c92"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/libraries.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/libraries.json": {
     "mtime": 1789633242.637186,
     "ast_hash": "ab1c4277532c8d2dd10c1e5f7d95997b",
-    "semantic_hash": ""
+    "semantic_hash": "ab1c4277532c8d2dd10c1e5f7d95997b"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/readlists_page.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/readlists_page.json": {
     "mtime": 1789633242.9588232,
     "ast_hash": "fa8fc9e32ac622db819dc3a7f62996b0",
-    "semantic_hash": ""
+    "semantic_hash": "fa8fc9e32ac622db819dc3a7f62996b0"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/series.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/series.json": {
     "mtime": 1789633242.2327695,
     "ast_hash": "16ec8993a15f675a3401c8f6399ab327",
-    "semantic_hash": ""
+    "semantic_hash": "16ec8993a15f675a3401c8f6399ab327"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/series_page.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/series_page.json": {
     "mtime": 1789633242.3340418,
     "ast_hash": "54c4e4f6e9c320ee092c02ae0a13aa6b",
-    "semantic_hash": ""
+    "semantic_hash": "54c4e4f6e9c320ee092c02ae0a13aa6b"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/series_unpaged.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/series_unpaged.json": {
     "mtime": 1789633249.3081605,
     "ast_hash": "54c4e4f6e9c320ee092c02ae0a13aa6b",
-    "semantic_hash": ""
+    "semantic_hash": "54c4e4f6e9c320ee092c02ae0a13aa6b"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/settings.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/settings.json": {
     "mtime": 1789633243.0582983,
     "ast_hash": "302174fc51b39c6a44bd7983582213c6",
-    "semantic_hash": ""
+    "semantic_hash": "302174fc51b39c6a44bd7983582213c6"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/Fixtures/user_me.json": {
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/Fixtures/user_me.json": {
     "mtime": 1789633242.7650058,
     "ast_hash": "f4202223d9ca96073b2a8e8dc9a08e81",
-    "semantic_hash": ""
+    "semantic_hash": "f4202223d9ca96073b2a8e8dc9a08e81"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaAPITests/ModelDecodingTests.swift": {
-    "mtime": 1789633282.452295,
-    "ast_hash": "71fb3bbef46f671b1860e52f27acecaf",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Tests/KomgaAPITests/ModelDecodingTests.swift": {
+    "mtime": 1789703473.8222218,
+    "ast_hash": "d7e43b7a3f45e0587b95a4d9161e79d3",
+    "semantic_hash": "d7e43b7a3f45e0587b95a4d9161e79d3"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaRemoteTests/FixtureServerIntegrationTests.swift": {
-    "mtime": 1789633660.9901278,
-    "ast_hash": "4b8ddc817f59d5765e825ee75300ff0d",
-    "semantic_hash": ""
+  "swift/Packages/SplashKit/Tests/KomgaRemoteTests/FixtureServerIntegrationTests.swift": {
+    "mtime": 1789648433.902215,
+    "ast_hash": "36232c75e1a1127470d5c7641e48320c",
+    "semantic_hash": "36232c75e1a1127470d5c7641e48320c"
   },
-  "swift/Packages/KomeliaKit/Tests/KomgaRemoteTests/UnitTests.swift": {
+  "swift/Packages/SplashKit/Tests/KomgaRemoteTests/UnitTests.swift": {
     "mtime": 1789633640.7735682,
     "ast_hash": "5e5c265e2f9efabad779bc65d3ad1fae",
-    "semantic_hash": ""
+    "semantic_hash": "5e5c265e2f9efabad779bc65d3ad1fae"
+  },
+  "swift/Packages/SplashKit/Tests/SplashCoreTests/AuthTests.swift": {
+    "mtime": 1789670171.3510158,
+    "ast_hash": "9b107eaee7866e0208b0b1c12aba11bb",
+    "semantic_hash": "9b107eaee7866e0208b0b1c12aba11bb"
+  },
+  "swift/Packages/SplashKit/Tests/SplashCoreTests/SettingsStateTests.swift": {
+    "mtime": 1789703457.387668,
+    "ast_hash": "308bb0d4d199bb3f4394356a83196383",
+    "semantic_hash": "308bb0d4d199bb3f4394356a83196383"
+  },
+  "swift/Packages/SplashKit/Tests/SplashCoreTests/ThumbnailLoaderTests.swift": {
+    "mtime": 1789670171.3503025,
+    "ast_hash": "e23423c227aa9613a4cddc23462aaa6c",
+    "semantic_hash": "e23423c227aa9613a4cddc23462aaa6c"
+  },
+  "swift/Packages/SplashKit/Tests/SplashDBTests/MigrationTests.swift": {
+    "mtime": 1789703411.7462447,
+    "ast_hash": "97a706410edb41c33a876c244ff907f7",
+    "semantic_hash": "97a706410edb41c33a876c244ff907f7"
+  },
+  "swift/Packages/SplashKit/Tests/SplashDBTests/OfflineRecordTests.swift": {
+    "mtime": 1789670171.3519933,
+    "ast_hash": "fd72cfb59085246a880e4f1f21af28c4",
+    "semantic_hash": "fd72cfb59085246a880e4f1f21af28c4"
+  },
+  "swift/Packages/SplashKit/Tests/SplashDBTests/OfflineRepositoryTests.swift": {
+    "mtime": 1789670171.3533292,
+    "ast_hash": "6630030ff9677555acfd69f71c870d89",
+    "semantic_hash": "6630030ff9677555acfd69f71c870d89"
+  },
+  "swift/Packages/SplashKit/Tests/SplashDBTests/OfflineTaskQueueTests.swift": {
+    "mtime": 1789670171.351432,
+    "ast_hash": "5bfc7871628bd452582c03a69366dffe",
+    "semantic_hash": "5bfc7871628bd452582c03a69366dffe"
+  },
+  "swift/Packages/SplashKit/Tests/SplashDBTests/SettingsStoreTests.swift": {
+    "mtime": 1789670171.3522959,
+    "ast_hash": "81fdef21c06b2d89d65fce35ffceadea",
+    "semantic_hash": "81fdef21c06b2d89d65fce35ffceadea"
+  },
+  "swift/Packages/SplashKit/Tests/SplashDBTests/TestSupport.swift": {
+    "mtime": 1789670171.3516157,
+    "ast_hash": "d94c9b60f68543a91ccaf8a90ec41e0b",
+    "semantic_hash": "d94c9b60f68543a91ccaf8a90ec41e0b"
+  },
+  "swift/Packages/SplashKit/Tests/SplashImageTests/ReaderImageTests.swift": {
+    "mtime": 1789670171.3600168,
+    "ast_hash": "9ea9405166d741f2b26cb86caaec5005",
+    "semantic_hash": "9ea9405166d741f2b26cb86caaec5005"
+  },
+  "swift/Packages/SplashKit/Tests/SplashOfflineTests/DownloadSupportTests.swift": {
+    "mtime": 1789670171.3543072,
+    "ast_hash": "0fa5d08c5b79bcd45198ffb3a51085d1",
+    "semantic_hash": "0fa5d08c5b79bcd45198ffb3a51085d1"
+  },
+  "swift/Packages/SplashKit/Tests/SplashOfflineTests/FixtureServerOfflineTests.swift": {
+    "mtime": 1789670171.353921,
+    "ast_hash": "8ca5263fb7a80e44df72957fdb0236e3",
+    "semantic_hash": "8ca5263fb7a80e44df72957fdb0236e3"
+  },
+  "swift/Packages/SplashKit/Tests/SplashOfflineTests/OfflineKomgaApiTests.swift": {
+    "mtime": 1789670171.3562894,
+    "ast_hash": "62a29bb81310a74677b77ed5bbc0e4e5",
+    "semantic_hash": "62a29bb81310a74677b77ed5bbc0e4e5"
+  },
+  "swift/Packages/SplashKit/Tests/SplashOfflineTests/SyncManagerTests.swift": {
+    "mtime": 1789670171.356986,
+    "ast_hash": "67f381dcd07dea6ac78a3e2f766018df",
+    "semantic_hash": "67f381dcd07dea6ac78a3e2f766018df"
+  },
+  "swift/Packages/SplashKit/Tests/SplashOfflineTests/TaskQueueTests.swift": {
+    "mtime": 1789670171.355417,
+    "ast_hash": "be53cf4f5282301580c349a60f86c394",
+    "semantic_hash": "be53cf4f5282301580c349a60f86c394"
+  },
+  "swift/Packages/SplashKit/Tests/SplashOfflineTests/TestSupport.swift": {
+    "mtime": 1789670171.354938,
+    "ast_hash": "34e050c64565ac795ab9d7b034dafe42",
+    "semantic_hash": "34e050c64565ac795ab9d7b034dafe42"
+  },
+  "swift/Packages/SplashKit/Tests/SplashUITests/EntitlementTests.swift": {
+    "mtime": 1789703411.746593,
+    "ast_hash": "2c0ff9735a432f417f9aa0c29d841602",
+    "semantic_hash": "2c0ff9735a432f417f9aa0c29d841602"
+  },
+  "swift/Packages/SplashKit/Tests/SplashUITests/LoginViewModelTests.swift": {
+    "mtime": 1789680068.3247702,
+    "ast_hash": "138b99ab3e234d35e3341d88bd0a2b9c",
+    "semantic_hash": "138b99ab3e234d35e3341d88bd0a2b9c"
+  },
+  "swift/Packages/SplashKit/Tests/SplashUITests/MainNavigationTests.swift": {
+    "mtime": 1789703411.7468965,
+    "ast_hash": "5ee42046c13edf7ed3cfdffa2c0c6c8d",
+    "semantic_hash": "5ee42046c13edf7ed3cfdffa2c0c6c8d"
+  },
+  "swift/Packages/SplashKit/Tests/SplashUITests/PaginationBarTests.swift": {
+    "mtime": 1789703523.7850246,
+    "ast_hash": "167f091805c4a102dd5c31d08345d6ab",
+    "semantic_hash": "167f091805c4a102dd5c31d08345d6ab"
+  },
+  "swift/Packages/SplashKit/Tests/SplashUITests/ReaderTests.swift": {
+    "mtime": 1789670171.3607745,
+    "ast_hash": "8e2153ef4ed7cd5f8e45f5b886d6020f",
+    "semantic_hash": "8e2153ef4ed7cd5f8e45f5b886d6020f"
+  },
+  "swift/Splash/App/SplashApp.swift": {
+    "mtime": 1789670171.34738,
+    "ast_hash": "fc70c591bb015493d72f3465aeb4fd13",
+    "semantic_hash": "fc70c591bb015493d72f3465aeb4fd13"
+  },
+  "swift/Splash/Resources/Assets.xcassets/AccentColor.colorset/Contents.json": {
+    "mtime": 1789633332.0097673,
+    "ast_hash": "a751c16c7ee756dcdc4c9f297fc852d3",
+    "semantic_hash": "a751c16c7ee756dcdc4c9f297fc852d3"
+  },
+  "swift/Splash/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json": {
+    "mtime": 1789633332.0065868,
+    "ast_hash": "7aab24daf03c74b2c445a70f049a7aac",
+    "semantic_hash": "7aab24daf03c74b2c445a70f049a7aac"
+  },
+  "swift/Splash/Resources/Assets.xcassets/Contents.json": {
+    "mtime": 1789633332.0032601,
+    "ast_hash": "6f266f38436c1b8465f1c0b241ffd07e",
+    "semantic_hash": "6f266f38436c1b8465f1c0b241ffd07e"
+  },
+  "tools/wire_contract_check.py": {
+    "mtime": 1789670432.7254503,
+    "ast_hash": "0477648841f581d6f9bb32269cb315c2",
+    "semantic_hash": "0477648841f581d6f9bb32269cb315c2"
+  },
+  "CLAUDE.md": {
+    "mtime": 1789670189.525576,
+    "ast_hash": "cf1ecca7fe0b173bbe823a8fb17c1480",
+    "semantic_hash": "cf1ecca7fe0b173bbe823a8fb17c1480"
+  },
+  "PRIVACY_FEATURE_PROMPT.md": {
+    "mtime": 1789704100.8158183,
+    "ast_hash": "b42d14717909df5e05d3a809e5a2cc64",
+    "semantic_hash": "b42d14717909df5e05d3a809e5a2cc64"
+  },
+  "README.md": {
+    "mtime": 1789677551.3192945,
+    "ast_hash": "02eb2145f9b067b2092850fde1b62aac",
+    "semantic_hash": "02eb2145f9b067b2092850fde1b62aac"
+  },
+  "TRADEMARKS.md": {
+    "mtime": 1789677542.9655352,
+    "ast_hash": "3f759e7819e1c8c4476449ca4e477dd3",
+    "semantic_hash": "3f759e7819e1c8c4476449ca4e477dd3"
+  },
+  "docs/port-map.md": {
+    "mtime": 1789670432.7246,
+    "ast_hash": "4970faa88c1176a0b4373cd470e8b5a2",
+    "semantic_hash": "4970faa88c1176a0b4373cd470e8b5a2"
+  },
+  "docs/wire-format.md": {
+    "mtime": 1789670432.7250955,
+    "ast_hash": "e52d73e5a56fad30a44a24bd9ba81de6",
+    "semantic_hash": "e52d73e5a56fad30a44a24bd9ba81de6"
+  },
+  "fixtures/komga/README.md": {
+    "mtime": 1789670432.7253125,
+    "ast_hash": "05d8d74c45e9f10430dc06dc4a18e667",
+    "semantic_hash": "05d8d74c45e9f10430dc06dc4a18e667"
+  },
+  "fixtures/komga/docker-compose.yml": {
+    "mtime": 1789670405.8271973,
+    "ast_hash": "89d83ff52a626903ffb6105ccba6fb74",
+    "semantic_hash": "89d83ff52a626903ffb6105ccba6fb74"
   }
 }
