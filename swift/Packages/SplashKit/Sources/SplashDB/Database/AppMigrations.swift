@@ -67,9 +67,23 @@ enum AppMigrations {
                 );
                 """)
         }
+        // [NUEVO] iOS-only: the private-content feature has no Kotlin counterpart. Appended rather than
+        // folded into v1 so existing installs migrate instead of being recreated.
+        migrator.registerMigration("v2_hidden_content") { db in
+            try db.execute(sql: """
+                -- `payload` is one JSON HiddenContent blob, same shape as HomeScreenFilters.filters.
+                CREATE TABLE HiddenContent
+                (
+                    version INTEGER NOT NULL PRIMARY KEY,
+                    payload TEXT    NOT NULL
+                );
+                """)
+        }
         return migrator
     }
 
     /// Tables created by `migrator`, for tests and diagnostics.
-    static let tableNames: Set<String> = ["AppSettings", "ImageReaderSettings", "EpubReaderSettings", "HomeScreenFilters"]
+    static let tableNames: Set<String> = [
+        "AppSettings", "ImageReaderSettings", "EpubReaderSettings", "HomeScreenFilters", "HiddenContent",
+    ]
 }

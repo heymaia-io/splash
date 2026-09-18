@@ -29,22 +29,6 @@ public struct OfflineUserChoice: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Gate for paid offline features (plan Phase 16). The composition root injects the real entitlement check;
-/// everything that starts a download or enters offline mode asks this first.
-@MainActor
-public protocol OfflineAccessPolicy: AnyObject {
-    var isUnlocked: Bool { get }
-    /// Asks the UI to present the paywall.
-    func requestUnlock()
-}
-
-@MainActor
-public final class AlwaysUnlockedPolicy: OfflineAccessPolicy {
-    public init() {}
-    public var isUnlocked: Bool { true }
-    public func requestUnlock() {}
-}
-
 /// UI façade over `OfflineDownloads` (Kotlin: `OfflineTaskEmitter` + `bookDownloadEvents` +
 /// `OfflineSettingsRepository` as consumed by screens). Keeps live download state for badges/progress.
 @MainActor
@@ -57,14 +41,14 @@ public final class OfflineController {
         didSet { onWifiOnlyChange(wifiOnly) }
     }
 
-    public let access: any OfflineAccessPolicy
+    public let access: any PremiumAccessPolicy
     private let service: OfflineDownloads
     private let modeSwitch: any OfflineModeSwitching
     private let onWifiOnlyChange: (Bool) -> Void
     private var eventsTask: Task<Void, Never>?
 
     public init(
-        service: OfflineDownloads, modeSwitch: any OfflineModeSwitching, access: any OfflineAccessPolicy,
+        service: OfflineDownloads, modeSwitch: any OfflineModeSwitching, access: any PremiumAccessPolicy,
         wifiOnly: Bool, onWifiOnlyChange: @escaping (Bool) -> Void
     ) {
         self.service = service
@@ -140,7 +124,7 @@ public final class OfflineController {
     public func downloadedSeries() async throws -> [KomgaSeries] { try await modeSwitch.downloadedSeries() }
 
     public func goOffline(as userId: KomgaUserId) async {
-        guard access.isUnlocked else { return access.requestUnlock() }
+        guard access.isUnlocked else { return access.requestUnlock(for: .offline) }
         do { try await modeSwitch.goOffline(as: userId) } catch { lastError = error.localizedDescription }
     }
 
@@ -151,7 +135,7 @@ public final class OfflineController {
     public func dismissError() { lastError = nil }
 
     private func gated(_ action: @escaping (OfflineDownloads) async throws -> Void) {
-        guard access.isUnlocked else { return access.requestUnlock() }
+        guard access.isUnlocked else { return access.requestUnlock(for: .offline) }
         run(action)
     }
 

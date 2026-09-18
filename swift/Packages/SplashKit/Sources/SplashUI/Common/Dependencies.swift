@@ -17,6 +17,8 @@ public final class ViewModelFactory {
     public let authState: KomgaAuthenticationState
     public let events: KomgaEventSource
     public let thumbnails: ThumbnailLoader?
+    /// The private-content set. Screens read it per fetch so hiding something refreshes them live.
+    public let hiddenContent: HiddenContentRepository
 
     public init(
         apiProvider: @escaping @MainActor () -> any KomgaApi,
@@ -25,7 +27,9 @@ public final class ViewModelFactory {
         homeFilters: HomeScreenFilterRepository,
         authState: KomgaAuthenticationState,
         events: KomgaEventSource,
-        thumbnails: ThumbnailLoader?
+        thumbnails: ThumbnailLoader?,
+        // Defaults to an inert in-memory set so previews and tests need not wire privacy at all.
+        hiddenContent: HiddenContentRepository = SettingsState(initial: HiddenContent(), save: { _ in })
     ) {
         self.apiProvider = apiProvider
         self.settings = settings
@@ -34,6 +38,15 @@ public final class ViewModelFactory {
         self.authState = authState
         self.events = events
         self.thumbnails = thumbnails
+        self.hiddenContent = hiddenContent
+    }
+
+    /// Filter for a screen. `mode` is `.onlyHidden` only inside the private area.
+    /// Falls back to showing everything when the stored ids belong to a different server.
+    func filter(_ mode: HiddenContentMode = .excludeHidden, serverUrl: String) -> HiddenContentFilter {
+        let hidden = hiddenContent.value
+        guard hidden.applies(to: serverUrl) else { return .disabled }
+        return HiddenContentFilter(hidden: hidden, mode: mode)
     }
 
     var api: any KomgaApi { apiProvider() }

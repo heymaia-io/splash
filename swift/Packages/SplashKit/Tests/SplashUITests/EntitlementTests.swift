@@ -3,7 +3,7 @@ import Synchronization
 import Testing
 @testable import SplashUI
 
-final class FakeStoreProvider: OfflineStoreProvider {
+final class FakeStoreProvider: PremiumStoreProvider {
     let entitled = Mutex(false)
     let outcome: PurchaseOutcome
     let (updates, continuation) = AsyncStream.makeStream(of: Bool.self)
@@ -13,8 +13,8 @@ final class FakeStoreProvider: OfflineStoreProvider {
         self.entitled.withLock { $0 = entitled }
     }
 
-    func productInfo() async throws -> OfflineProductInfo? {
-        OfflineProductInfo(displayName: "Offline", displayPrice: "$3.99", description: "")
+    func productInfo() async throws -> PremiumProductInfo? {
+        PremiumProductInfo(displayName: "Offline", displayPrice: "$3.99", description: "")
     }
 
     func purchase() async throws -> PurchaseOutcome {
@@ -30,7 +30,7 @@ final class FakeStoreProvider: OfflineStoreProvider {
 @MainActor
 @Suite struct EntitlementTests {
     @Test func lockedByDefaultAndPaywallOnRequest() async {
-        let store = OfflineEntitlementStore(provider: FakeStoreProvider())
+        let store = PremiumEntitlementStore(provider: FakeStoreProvider())
         await store.start()
         #expect(!store.isUnlocked)
         #expect(store.product?.displayPrice == "$3.99")
@@ -39,7 +39,7 @@ final class FakeStoreProvider: OfflineStoreProvider {
     }
 
     @Test func purchaseUnlocksAndClosesPaywall() async {
-        let store = OfflineEntitlementStore(provider: FakeStoreProvider())
+        let store = PremiumEntitlementStore(provider: FakeStoreProvider())
         await store.start()
         store.requestUnlock()
         await store.purchase()
@@ -49,7 +49,7 @@ final class FakeStoreProvider: OfflineStoreProvider {
 
     @Test func pendingAndCancelledStayLocked() async {
         for outcome in [PurchaseOutcome.pending, .cancelled] {
-            let store = OfflineEntitlementStore(provider: FakeStoreProvider(outcome: outcome))
+            let store = PremiumEntitlementStore(provider: FakeStoreProvider(outcome: outcome))
             await store.start()
             await store.purchase()
             #expect(!store.isUnlocked)
@@ -58,7 +58,7 @@ final class FakeStoreProvider: OfflineStoreProvider {
 
     @Test func restoreFindsExistingPurchase() async {
         let provider = FakeStoreProvider()
-        let store = OfflineEntitlementStore(provider: provider)
+        let store = PremiumEntitlementStore(provider: provider)
         await store.start()
         provider.entitled.withLock { $0 = true }
         await store.restore()
@@ -67,7 +67,7 @@ final class FakeStoreProvider: OfflineStoreProvider {
 
     @Test func revocationLocksAgain() async throws {
         let provider = FakeStoreProvider(entitled: true)
-        let store = OfflineEntitlementStore(provider: provider)
+        let store = PremiumEntitlementStore(provider: provider)
         await store.start()
         #expect(store.isUnlocked)
         provider.continuation.yield(false)  // refund

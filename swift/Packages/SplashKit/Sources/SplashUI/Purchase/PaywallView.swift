@@ -3,32 +3,32 @@ import SwiftUI
 /// Paywall for the offline unlock (plan Phase 16). Shown when a download or offline mode is requested
 /// without the purchase.
 public struct PaywallView: View {
-    @Bindable var store: OfflineEntitlementStore
+    @Bindable var store: PremiumEntitlementStore
+    /// Copy for the feature that asked; the product being sold is the same either way.
+    let context: PaywallContext
     @Environment(\.dismiss) private var dismiss
 
-    public init(store: OfflineEntitlementStore) {
+    public init(store: PremiumEntitlementStore, context: PaywallContext = .offline) {
         self.store = store
+        self.context = context
     }
 
     public var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    Image(systemName: "arrow.down.circle.fill")
+                    Image(systemName: context.icon)
                         .font(.system(size: 64))
                         .foregroundStyle(.tint)
                         .accessibilityHidden(true)
                     VStack(spacing: 8) {
-                        Text("Read offline").font(.largeTitle.bold())
-                        Text("Reading online stays free and unlimited. Unlock offline reading once to take your comics anywhere.")
+                        Text(context.title).font(.largeTitle.bold())
+                        Text(context.subtitle)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
                     }
                     VStack(alignment: .leading, spacing: 14) {
-                        Benefit(icon: "books.vertical", text: "Download books and whole series")
-                        Benefit(icon: "airplane", text: "Read comics, PDFs and EPUBs without a connection")
-                        Benefit(icon: "arrow.triangle.2.circlepath", text: "Progress syncs back when you're online")
-                        Benefit(icon: "checkmark.seal", text: "One-time purchase — no subscription")
+                        ForEach(context.benefits, id: \.icon) { Benefit(icon: $0.icon, text: $0.text) }
                     }
                     .frame(maxWidth: 420, alignment: .leading)
 

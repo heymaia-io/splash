@@ -13,7 +13,9 @@ import Testing
     @Test func appDatabaseHasExpectedTables() async throws {
         let database = try SplashDatabase.inMemory()
         let tables = try await database.app.read(userTables)
-        #expect(tables == ["AppSettings", "ImageReaderSettings", "EpubReaderSettings", "HomeScreenFilters"])
+        #expect(tables == [
+            "AppSettings", "ImageReaderSettings", "EpubReaderSettings", "HomeScreenFilters", "HiddenContent",
+        ])
         #expect(tables == AppMigrations.tableNames)
     }
 

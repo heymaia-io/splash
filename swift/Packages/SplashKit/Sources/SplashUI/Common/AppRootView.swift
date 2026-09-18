@@ -21,7 +21,9 @@ public protocol AppSession: LoginSession {
     /// API backed purely by the offline store, used to browse downloaded content without a connection.
     var offlineApi: any KomgaApi { get }
     /// nil when purchases are not configured (tests/previews) — offline is then unrestricted.
-    var entitlements: OfflineEntitlementStore? { get }
+    var entitlements: PremiumEntitlementStore? { get }
+    /// nil when the privacy feature is not configured (tests/previews).
+    var privacy: PrivacyController? { get }
 }
 
 /// Port of `MainView.kt`'s root navigator: Login ↔ main shell, driven by the authentication state.
@@ -78,7 +80,7 @@ public struct AppRootView: View {
             get: { session.entitlements?.isPaywallPresented ?? false },
             set: { session.entitlements?.isPaywallPresented = $0 })
         ) {
-            if let store = session.entitlements { PaywallView(store: store) }
+            if let store = session.entitlements { PaywallView(store: store, context: store.paywallContext) }
         }
         .onChange(of: session.authState.state) { _, state in
             if state == .authenticationRequired {

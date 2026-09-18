@@ -83,7 +83,7 @@ public struct DownloadsSettingsView: View {
                 Text("Offline mode")
             } footer: {
                 if !offline.access.isUnlocked {
-                    Button("Unlock offline reading") { offline.access.requestUnlock() }
+                    Button("Unlock offline reading") { offline.access.requestUnlock(for: .offline) }
                 }
             }
 
@@ -243,7 +243,7 @@ struct DownloadsView: View {
         } description: {
             Text("Download comics, PDFs and EPUBs and read them without a connection.")
         } actions: {
-            Button("Unlock offline reading") { offline.access.requestUnlock() }
+            Button("Unlock offline reading") { offline.access.requestUnlock(for: .offline) }
                 .buttonStyle(.borderedProminent)
         }
     }

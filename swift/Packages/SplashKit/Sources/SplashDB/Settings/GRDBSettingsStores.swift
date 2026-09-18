@@ -64,6 +64,39 @@ public struct GRDBHomeScreenFilterStore<Filter: Codable & Sendable>: SettingsSto
     }
 }
 
+/// [NUEVO] Private-content list. Same single-JSON-row shape as `GRDBHomeScreenFilterStore` — the payload
+/// is a small, user-curated set that is always read and written whole, so a row-per-id table would buy
+/// nothing. Generic for the same reason: `SplashDB` stays ignorant of the domain type's shape.
+public struct GRDBHiddenContentStore<Value: Codable & Sendable>: SettingsStore {
+    private let writer: any DatabaseWriter
+
+    public init(_ writer: any DatabaseWriter) { self.writer = writer }
+
+    /// Undecodable JSON yields `nil` so the defaults get re-saved — the same tolerance the other stores
+    /// have. Note the consequence for this table: corrupt JSON *unhides* everything rather than failing
+    /// closed. Failing open is the right call here (the alternative is an app that cannot show a library
+    /// it has no record of hiding), but it is a deliberate choice, not an oversight.
+    public func load() async throws -> Value? {
+        let json = try await writer.read { db in
+            try String.fetchOne(db, sql: "SELECT payload FROM HiddenContent WHERE version = 1")
+        }
+        guard let json else { return nil }
+        return try? JSONDecoder().decode(Value.self, from: Data(json.utf8))
+    }
+
+    public func save(_ value: Value) async throws {
+        let json = String(decoding: try JSONEncoder().encode(value), as: UTF8.self)
+        try await writer.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO HiddenContent (version, payload) VALUES (1, ?)
+                    ON CONFLICT (version) DO UPDATE SET payload = excluded.payload
+                    """,
+                arguments: [json])
+        }
+    }
+}
+
 // MARK: - Rows
 
 /// Enum columns hold the Kotlin enum name; an unknown name is a decoding error (Kotlin `valueOf` throws too).
