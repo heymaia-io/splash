@@ -52,7 +52,7 @@
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
-            key = "SPLASH_UNLOCK_OFFLINE"
+            key = "SPLASH_UNLOCK_PREMIUM"
             value = "1"
             isEnabled = "YES">
          </EnvironmentVariable>

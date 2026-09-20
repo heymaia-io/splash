@@ -1,3 +1,4 @@
+import SplashCore
 import Foundation
 
 /// Port of `snd.komelia.ui.LoadState`.
@@ -59,6 +60,22 @@ public final class ReloadScheduler {
     }
 }
 
+/// True when this error is a task cancellation rather than a real failure.
+///
+/// Cancellation means "nobody is waiting for this any more" — a pull-to-refresh superseding an in-flight
+/// load, a screen being torn down, a debounced search restarting. Showing it as an error puts
+/// "CancellationError error 1" in front of the user for something that is working as intended. It matters
+/// more since the shell is keyed on the private-area unlock state: locking or revealing rebuilds the
+/// screens, which cancels whatever they were loading.
+///
+/// `URLError.cancelled` is checked too, because a cancelled `URLSession` request surfaces as that rather
+/// than as `CancellationError`.
+extension Error {
+    public var isCancellation: Bool {
+        self is CancellationError || (self as? URLError)?.code == .cancelled
+    }
+}
+
 /// Subscribes a screen model to the shared event stream for as long as the returned task lives.
 @MainActor
 func listen(
@@ -69,3 +86,26 @@ func listen(
         for await event in stream { handler(event) }
     }
 }
+
+/// [NUEVO] Reloads a screen when the private-content set changes, so hiding something takes effect without
+/// leaving the screen.
+///
+/// **The first emission is skipped**: `SettingsState.values()` replays the current value on subscribe, and
+/// `initialize()` has already loaded with it — reacting to it would double every screen's first fetch.
+@MainActor
+func listenHidden(
+    to changes: @escaping @MainActor () -> AsyncStream<PrivacyState>, _ reload: @escaping @MainActor () async -> Void
+) -> Task<Void, Never> {
+    let stream = changes()
+    return Task {
+        var isFirst = true
+        for await _ in stream {
+            if isFirst { isFirst = false; continue }
+            await reload()
+        }
+    }
+}
+
+/// The "privacy is not configured" stream: finishes immediately, so subscribers do not linger.
+@MainActor
+public var noHiddenChanges: AsyncStream<PrivacyState> { AsyncStream { $0.finish() } }

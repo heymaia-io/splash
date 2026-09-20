@@ -21,7 +21,9 @@ public protocol AppSession: LoginSession {
     /// API backed purely by the offline store, used to browse downloaded content without a connection.
     var offlineApi: any KomgaApi { get }
     /// nil when purchases are not configured (tests/previews) — offline is then unrestricted.
-    var entitlements: OfflineEntitlementStore? { get }
+    var entitlements: PremiumEntitlementStore? { get }
+    /// nil when privacy is not configured (tests/previews) — nothing is then hidden.
+    var privacy: PrivacyController? { get }
 }
 
 /// Port of `MainView.kt`'s root navigator: Login ↔ main shell, driven by the authentication state.
@@ -58,12 +60,17 @@ public struct AppRootView: View {
                         if session.isOfflineMode, let offline = session.offlineController {
                             OfflineBanner(offline: offline)
                         }
+                        if let privacy = session.privacy, privacy.isUnlocked {
+                            PrivacyBanner(privacy: privacy)
+                        }
                         main(mainModel)
                     }
                     .id(session.contentGeneration)
                 } else {
-                    ProgressView().onAppear {
-                        let model = MainScreenViewModel(authState: session.authState)
+                    SplashLoadingView().onAppear {
+                        let model = MainScreenViewModel(
+                            authState: session.authState, settings: session.settings,
+                            hiddenFilter: { session.privacy?.filter() ?? .disabled })
                         model.startListening(to: session.viewModelFactory.events.subscribe())
                         mainModel = model
                     }
@@ -72,6 +79,7 @@ public struct AppRootView: View {
         }
         .environment(\.thumbnailLoader, session.viewModelFactory.thumbnails)
         .environment(\.offlineController, session.offlineController)
+        .environment(\.privacy, session.privacy)
         .preferredColorScheme(session.settings.value.appTheme.colorScheme)
         .background(session.settings.value.appTheme == .darker ? Color.black.ignoresSafeArea() : nil)
         .sheet(isPresented: Binding(
@@ -90,7 +98,11 @@ public struct AppRootView: View {
         // [NUEVO] iOS lifecycle: pause SSE in background, resume when active (plan Phase 7).
         .onChange(of: scenePhase) { _, phase in
             session.setLiveEventsActive(phase == .active && session.authState.state == .loaded)
+            session.privacy?.scenePhaseChanged(phase)
         }
+        // [NUEVO] The app-switcher snapshot is taken while `.inactive`; without this it would preserve
+        // everything the feature hides, in a thumbnail the user cannot dismiss.
+        .privacyBlur(isActive: (session.privacy?.isUnlocked ?? false) && scenePhase != .active)
     }
 
     private func main(_ model: MainScreenViewModel) -> some View {
@@ -105,11 +117,34 @@ public struct AppRootView: View {
             default:
                 DestinationView(
                     destination: destination, factory: session.viewModelFactory, navigator: model.navigator,
-                    api: model.navigator.root == .downloads ? session.offlineApi : nil,
+                    // Only the Downloads shelf itself is pinned to the offline store; a series pushed
+                    // from it uses the active API so the All / Not downloaded filters have something
+                    // to show. It still *opens* on Downloaded, so tapping a cover there shows what you
+                    // have, answered from the offline store and available with no network.
+                    api: destination == .downloads ? session.offlineApi : nil,
+                    offlineApi: session.offlineApi,
+                    downloadFilter: model.navigator.root == .downloads ? .downloaded : .all,
+                    rememberLibrary: { model.rememberLibrary($0) },
                     onRead: { open($0) })
             }
         }
         .task {
+            // Set here, not in `body`: `body` runs while `mainModel` is still nil, so capturing it there
+            // installed a closure that could never navigate and the user was left staring at a detail
+            // screen for content that had just been hidden.
+            //
+            // Returns to the tab they were on — Home, Library or Downloads — rather than always Home,
+            // dropping only what was pushed on top of it. A root that is itself hidden falls back to Home.
+            session.privacy?.onLock = { [weak model] in
+                guard let model else { return }
+                let filter = session.privacy?.filter() ?? .disabled
+                if case .library(let id) = model.navigator.root, filter.isHidden(libraryId: id) {
+                    model.navigator.replaceAll(.home)
+                } else {
+                    model.navigator.popToRoot()
+                }
+                model.searchQuery = ""
+            }
             if let initialBook, !openedInitialBook {
                 openedInitialBook = true
                 open(initialBook)
@@ -127,6 +162,10 @@ public struct AppRootView: View {
     /// EPUB books go to the Readium reader (plan Phase 15); everything else (CBZ, images, PDF) to the image
     /// reader. EPUBs that Komga marks as DiViNa-compatible (fixed-layout comics) also use the image reader.
     private func open(_ book: SplashBook) {
+        // This is the one path into the reader that does not come through a filtered listing — it is also
+        // reached by `initialBook` at launch, which is restored from the last session and can name a book
+        // hidden since. Silently doing nothing is deliberate: an error would confirm the book exists.
+        guard !(session.privacy?.filter() ?? .disabled).isHidden(book: book) else { return }
         guard book.media.mediaProfile == .epub, !book.media.epubDivinaCompatible else {
             Task { readerApi = await session.readingApi(for: book); readingBook = book }
             return

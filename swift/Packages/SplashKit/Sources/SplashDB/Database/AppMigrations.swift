@@ -67,9 +67,26 @@ enum AppMigrations {
                 );
                 """)
         }
+        // [NUEVO] Private (hidden) content — iOS-only, no Kotlin original. Appended, never edit v1.
+        migrator.registerMigration("v2_privacy") { db in
+            try db.execute(sql: """
+                -- `state` is a JSON PrivacyState: lock preferences plus the hidden ids keyed by server URL.
+                CREATE TABLE Privacy
+                (
+                    version INTEGER NOT NULL PRIMARY KEY,
+                    state   TEXT    NOT NULL
+                );
+                """)
+        }
+        // [NUEVO] The library the Library tab reopens on. Appended, never edit v1.
+        migrator.registerMigration("v3_last_library") { db in
+            try db.execute(sql: "ALTER TABLE AppSettings ADD COLUMN last_library_id TEXT;")
+        }
         return migrator
     }
 
     /// Tables created by `migrator`, for tests and diagnostics.
-    static let tableNames: Set<String> = ["AppSettings", "ImageReaderSettings", "EpubReaderSettings", "HomeScreenFilters"]
+    static let tableNames: Set<String> = [
+        "AppSettings", "ImageReaderSettings", "EpubReaderSettings", "HomeScreenFilters", "Privacy",
+    ]
 }

@@ -16,11 +16,17 @@ public final class SearchViewModel {
     public private(set) var state: LoadState<Void> = .uninitialized
 
     private let api: any KomgaApi
+    /// A provider, not a snapshot: re-read per search so unlocking takes effect on the next keystroke.
+    private let hiddenFilter: @MainActor () -> HiddenContentFilter
     private var searchTask: Task<Void, Never>?
 
-    init(api: any KomgaApi, initialQuery: String) {
+    init(
+        api: any KomgaApi, initialQuery: String,
+        hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }
+    ) {
         self.api = api
         self.query = initialQuery
+        self.hiddenFilter = hiddenFilter
     }
 
     /// Debounced (the Kotlin search bar also debounces keystrokes).
@@ -44,11 +50,15 @@ public final class SearchViewModel {
         state = .loading
         do {
             let page = KomgaPageRequest(size: 50)
+            let hidden = hiddenFilter()
             async let series = api.seriesApi.getSeriesList(
-                search: KomgaSeriesSearch(fullTextSearch: term), pageRequest: page)
-            async let books = api.bookApi.getBookList(search: KomgaBookSearch(fullTextSearch: term), pageRequest: page)
-            self.series = try await series.content
-            self.books = try await books.content
+                search: KomgaSeriesSearch(condition: hidden.combined(nil), fullTextSearch: term), pageRequest: page)
+            async let books = api.bookApi.getBookList(
+                search: KomgaBookSearch(condition: hidden.combined(nil), fullTextSearch: term), pageRequest: page)
+            // Conditions cannot exclude a series from a series query or a book from a book query, so both
+            // results still go through the guard.
+            self.series = hidden.visible(try await series.content)
+            self.books = hidden.visible(try await books.content)
             state = .success(())
         } catch {
             if !Task.isCancelled { state = .error(error) }

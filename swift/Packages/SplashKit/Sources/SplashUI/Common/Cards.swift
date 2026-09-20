@@ -71,9 +71,30 @@ struct CountBadge: View {
     }
 }
 
+/// A hidden item is only ever on screen while the private area is unlocked, where it is otherwise
+/// indistinguishable from everything else — so it says so.
+///
+/// Composed *with* the unread count and download glyph in the same overlay slot, never in place of them.
+struct LockBadge: View {
+    var body: some View {
+        Image(systemName: "lock.fill")
+            .font(.caption2)
+            .foregroundStyle(.white)
+            .padding(3)
+            .background(.purple, in: Circle())
+            .accessibilityLabel("Private")
+    }
+}
+
 /// `SeriesItemCard.kt`
 struct SeriesCard: View {
     let series: KomgaSeries
+    @Environment(\.privacy) private var privacy
+
+    private var isHidden: Bool {
+        guard let privacy, privacy.isUnlocked else { return false }
+        return privacy.isHidden(seriesId: series.id) || privacy.isHidden(libraryId: series.libraryId)
+    }
 
     var body: some View {
         ItemCard(
@@ -82,7 +103,10 @@ struct SeriesCard: View {
             subtitle: series.oneshot ? String(localized: "Oneshot")
                 : String(localized: "\(series.booksCount) books")
         ) {
-            if series.booksUnreadCount > 0, !series.oneshot { CountBadge(count: series.booksUnreadCount) }
+            HStack(spacing: 4) {
+                if isHidden { LockBadge() }
+                if series.booksUnreadCount > 0, !series.oneshot { CountBadge(count: series.booksUnreadCount) }
+            }
         }
     }
 }
@@ -91,6 +115,13 @@ struct SeriesCard: View {
 struct BookCard: View {
     let book: SplashBook
     var showSeries = false
+    @Environment(\.privacy) private var privacy
+
+    private var isHidden: Bool {
+        guard let privacy, privacy.isUnlocked else { return false }
+        return privacy.isHidden(bookId: book.id) || privacy.isHidden(seriesId: book.seriesId)
+            || privacy.isHidden(libraryId: book.libraryId)
+    }
 
     var body: some View {
         ItemCard(
@@ -99,6 +130,7 @@ struct BookCard: View {
             subtitle: showSeries ? book.metadata.title : String(localized: "\(book.media.pagesCount) pages")
         ) {
             HStack(spacing: 4) {
+                if isHidden { LockBadge() }
                 if book.downloaded {
                     Image(systemName: book.isLocalFileOutdated ? "arrow.down.circle.dotted" : "arrow.down.circle.fill")
                         .foregroundStyle(.white, .green)
@@ -231,4 +263,41 @@ struct ErrorView: View {
 
 extension KomgaSeries {
     var releaseYear: Int? { booksMetadata.releaseDate?.year }
+}
+
+/// Caption plus a horizontal row of metadata chips (tags, genres, authors). Shared by the series and book
+/// detail screens.
+///
+/// `onTap` makes the chips browsable: a tag chip opens everything carrying that tag. Chips without an action
+/// stay plain text rather than looking tappable and doing nothing.
+struct ChipRow: View {
+    let title: LocalizedStringKey
+    let values: [String]
+    var onTap: ((String) -> Void)?
+
+    var body: some View {
+        if !values.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.caption.bold()).foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(values, id: \.self) { value in
+                            if let onTap {
+                                Button { onTap(value) } label: { chip(value) }
+                                    .buttonStyle(.plain)
+                            } else {
+                                chip(value)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func chip(_ value: String) -> some View {
+        Text(value).font(.caption)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(.quaternary, in: Capsule())
+    }
 }

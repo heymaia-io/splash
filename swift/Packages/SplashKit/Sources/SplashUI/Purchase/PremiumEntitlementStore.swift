@@ -2,15 +2,19 @@ import Foundation
 import Observation
 import StoreKit
 
-/// Product sold by the app (plan Phase 16): one-time, non-consumable unlock of downloads/offline reading.
-public enum OfflineProduct {
+/// Product sold by the app: one-time, non-consumable unlock of offline reading **and** private content.
+public enum PremiumProduct {
+    /// **Do not change this id.** It is registered in App Store Connect and changing it orphans every
+    /// existing purchase. It still reads `.offline` because the product predates the privacy feature; the
+    /// surrounding types are named `Premium*` because one purchase now unlocks both. The mismatch is
+    /// deliberate, not a bug.
     public static let id = "com.heymaia.splash.offline"
 }
 
 /// What the entitlement store needs from the App Store (Strategy/Adapter — StoreKit in the app, fake in tests).
-public protocol OfflineStoreProvider: Sendable {
+public protocol PremiumStoreProvider: Sendable {
     /// Localized price and name, nil when the product can't be loaded (no network, misconfiguration).
-    func productInfo() async throws -> OfflineProductInfo?
+    func productInfo() async throws -> PremiumProductInfo?
     func purchase() async throws -> PurchaseOutcome
     /// Current verified entitlement (`Transaction.currentEntitlements`), ignoring revoked transactions.
     func hasEntitlement() async -> Bool
@@ -21,7 +25,7 @@ public protocol OfflineStoreProvider: Sendable {
     func entitlementUpdates() -> AsyncStream<Bool>
 }
 
-public struct OfflineProductInfo: Sendable, Equatable {
+public struct PremiumProductInfo: Sendable, Equatable {
     public let displayName: String
     public let displayPrice: String
     public let description: String
@@ -39,23 +43,26 @@ public enum PurchaseOutcome: Sendable, Equatable {
     case cancelled
 }
 
-/// Observable entitlement state + the `OfflineAccessPolicy` gate used by downloads and offline mode.
-/// A refund/revocation blocks new downloads and entering offline mode; already downloaded files are kept.
+/// Observable entitlement state + the `PremiumAccessPolicy` gate used by downloads, offline mode and the
+/// private area. A refund/revocation blocks new downloads, entering offline mode and revealing private
+/// content; already downloaded files are kept, and nothing that was hidden becomes visible.
 @MainActor
 @Observable
-public final class OfflineEntitlementStore: OfflineAccessPolicy {
+public final class PremiumEntitlementStore: PremiumAccessPolicy {
     public private(set) var isUnlocked = false
-    public private(set) var product: OfflineProductInfo?
+    public private(set) var product: PremiumProductInfo?
     public private(set) var isLoadingProduct = false
     public private(set) var isPurchasing = false
     public private(set) var message: String?
     /// Drives the paywall sheet.
     public var isPaywallPresented = false
+    /// Which feature was blocked, so the sheet leads with that. Set by `requestUnlock(for:)`.
+    public private(set) var paywallContext: PaywallContext = .offline
 
-    private let provider: any OfflineStoreProvider
+    private let provider: any PremiumStoreProvider
     private var updatesTask: Task<Void, Never>?
 
-    public init(provider: any OfflineStoreProvider) {
+    public init(provider: any PremiumStoreProvider) {
         self.provider = provider
     }
 
@@ -77,8 +84,9 @@ public final class OfflineEntitlementStore: OfflineAccessPolicy {
         product = try? await provider.productInfo()
     }
 
-    public func requestUnlock() {
+    public func requestUnlock(for context: PaywallContext) {
         message = nil
+        paywallContext = context
         isPaywallPresented = true
     }
 
@@ -118,16 +126,16 @@ public final class OfflineEntitlementStore: OfflineAccessPolicy {
 
 // MARK: - StoreKit 2 implementation
 
-public struct StoreKitOfflineProvider: OfflineStoreProvider {
+public struct StoreKitPremiumProvider: PremiumStoreProvider {
     public init() {}
 
     private func loadProduct() async throws -> Product? {
-        try await Product.products(for: [OfflineProduct.id]).first
+        try await Product.products(for: [PremiumProduct.id]).first
     }
 
-    public func productInfo() async throws -> OfflineProductInfo? {
+    public func productInfo() async throws -> PremiumProductInfo? {
         guard let product = try await loadProduct() else { return nil }
-        return OfflineProductInfo(
+        return PremiumProductInfo(
             displayName: product.displayName, displayPrice: product.displayPrice, description: product.description)
     }
 
@@ -149,7 +157,7 @@ public struct StoreKitOfflineProvider: OfflineStoreProvider {
 
     public func hasEntitlement() async -> Bool {
         for await result in Transaction.currentEntitlements {
-            if case .verified(let transaction) = result, transaction.productID == OfflineProduct.id,
+            if case .verified(let transaction) = result, transaction.productID == PremiumProduct.id,
                transaction.revocationDate == nil
             {
                 return true
@@ -166,7 +174,7 @@ public struct StoreKitOfflineProvider: OfflineStoreProvider {
         AsyncStream { continuation in
             let task = Task {
                 for await result in Transaction.updates {
-                    guard case .verified(let transaction) = result, transaction.productID == OfflineProduct.id
+                    guard case .verified(let transaction) = result, transaction.productID == PremiumProduct.id
                     else { continue }
                     await transaction.finish()
                     continuation.yield(await hasEntitlement())

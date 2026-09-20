@@ -66,6 +66,11 @@ public struct AppSettings: Codable, Hashable, Sendable {
     public var bookPageLoadSize: Int = 20
     public var bookListLayout: BooksLayout = .grid
     public var appTheme: AppTheme = .dark
+    /// [NUEVO] Library the Library tab reopens on (`nil` = All Libraries). The selection is the user's, not
+    /// the tab's: switching tabs used to discard it. Stored as the raw id because `AppSettings` lives below
+    /// `KomgaAPI`. Always resolved against the *visible* libraries before use, so a hidden or stale id
+    /// silently falls back to All Libraries.
+    public var lastLibraryId: String?
 
     public init() {}
 }

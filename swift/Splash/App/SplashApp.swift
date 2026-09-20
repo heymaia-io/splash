@@ -79,7 +79,7 @@ struct BootstrapView: View {
                     "Splash failed to start", systemImage: "exclamationmark.triangle",
                     description: Text(error.localizedDescription))
             } else {
-                ProgressView()
+                SplashLoadingView()
             }
         }
         .task {
@@ -89,7 +89,7 @@ struct BootstrapView: View {
                 #if DEBUG
                 initialBook = await created.debugBootstrap(environment: ProcessInfo.processInfo.environment)
                 if ProcessInfo.processInfo.environment["SPLASH_DEBUG_PAYWALL"] == "1" {
-                    created.entitlements?.requestUnlock()
+                    created.entitlements?.requestUnlock(for: .offline)
                 }
                 #endif
                 module = created
