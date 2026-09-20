@@ -24,3 +24,6 @@ xcuserdata/
 /reference/
 /swift/graphify-out/cache/
 /fixtures/komga/.env
+
+# Plan de publicación (local, no se versiona)
+/PUBLISHING_PLAN.md
