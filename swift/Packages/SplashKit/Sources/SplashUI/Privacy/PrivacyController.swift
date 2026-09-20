@@ -19,6 +19,9 @@ public final class PrivacyController {
     /// True while the system authentication sheet is up. Guards the background lock, because the passcode
     /// fallback can background the app on some configurations.
     public private(set) var isAuthenticating = false
+    /// Set by `revealAllAfterRevocation()` so the shell can tell the user *once* that their hidden content
+    /// came back. Memory only: the reveal clears `byServer`, so the guard below can never fire twice anyway.
+    public private(set) var didRevealAfterRevocation = false
 
     private let state: PrivacyStateRepository
     private let settings: CommonSettingsRepository
@@ -93,6 +96,31 @@ public final class PrivacyController {
     private func mutate(_ change: @escaping @Sendable (inout HiddenContent) -> Void) async {
         let serverUrl = settings.value.serverUrl
         try? await state.update { $0.update(serverUrl, change) }
+    }
+
+    /// Reveal everything, on every server, because the purchase that gated the feature is gone.
+    ///
+    /// Leaving the ids hidden would be worse than useless: `requestReveal()` sends an unentitled user to the
+    /// paywall instead of revealing, so a customer who bought, hid half their library and then took a refund
+    /// would be permanently locked out of their own content with no way back. Clearing is the only outcome
+    /// that cannot strand anyone.
+    ///
+    /// Clears **all** servers, not just the current one: the entitlement belongs to the Apple Account, not
+    /// to a Komga server, so a per-server reveal would leave the same trap on every other server.
+    ///
+    /// Persisted rather than held in memory, because `AppModule.setAccessPolicy` rebuilds this controller
+    /// and an in-memory reveal would not survive that.
+    public func revealAllAfterRevocation() async {
+        guard !state.value.byServer.isEmpty else { return }
+        try? await state.update { $0.byServer.removeAll() }
+        // Nothing is hidden any more, so there is no private area left to be "unlocked" into.
+        isUnlocked = false
+        didRevealAfterRevocation = true
+    }
+
+    /// Call after showing the notice, so it is not shown again.
+    public func acknowledgeRevocationReveal() {
+        didRevealAfterRevocation = false
     }
 
     public func setLockPolicy(_ policy: PrivacyLockPolicy) async {

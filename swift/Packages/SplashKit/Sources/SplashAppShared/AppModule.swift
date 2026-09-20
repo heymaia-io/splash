@@ -12,7 +12,7 @@ import Synchronization
 @MainActor
 @Observable
 public final class AppModule: AppSession {
-    public static let downloadSessionIdentifier = "com.heymaia.splash.downloads"
+    public static let downloadSessionIdentifier = "io.heymaia.splash.downloads"
 
     /// Where persistent state lives.
     public struct Storage: Sendable {
@@ -200,24 +200,61 @@ public final class AppModule: AppSession {
         return try await make(storage: storage, accessPolicy: accessPolicy)
     }
 
+    /// Marker compiled in **only** under `SPLASH_LOCAL_UNLOCK`, so a binary built with the override can be
+    /// identified from the outside. `tools/release.sh` greps for it and refuses to archive when it is
+    /// present — the flag cannot reach App Store Connect by accident.
+    #if SPLASH_LOCAL_UNLOCK
+    public static let localUnlockMarker = "SPLASH_LOCAL_UNLOCK_BUILD"
+    #endif
+
     /// Production wiring of the one-time premium unlock.
     public static func makeDefaultWithStore() async throws -> AppModule {
         let store = PremiumEntitlementStore(provider: StoreKitPremiumProvider())
+        #if SPLASH_LOCAL_UNLOCK
+        // Compile-time override for installing a build on a personal device — see `tools/install-local.sh`.
+        //
+        // Never set in the project: it exists only when passed on the xcodebuild command line. Unlike the
+        // DEBUG bypass below it needs **no environment variable**, because that is precisely what a launch
+        // from the home screen does not have — the scheme's variables are injected by Xcode at launch and
+        // are gone the moment the app is opened normally.
+        //
+        // Like the DEBUG bypass, it skips the *purchase*, not the *lock*: revealing private content still
+        // requires the gesture and device authentication.
+        print("[Splash] \(localUnlockMarker): premium unlocked at compile time. Not for distribution.")
+        return try await makeAlwaysUnlocked(store: store)
+        #else
         #if DEBUG
         // Debug builds only: `SPLASH_UNLOCK_PREMIUM=1` skips the entitlement check so downloads, offline mode
         // and private content can be exercised without going through StoreKit at all. Deliberately compiled
         // out of release builds — a bypass that ships is a bypass anyone can find in the binary.
         //
+        // Only effective when Xcode launches the app, since that is what sets the variable.
+        //
         // It bypasses the *purchase*, not the *lock*: the reveal gesture and device authentication are still
         // required to see private content.
         if ProcessInfo.processInfo.environment["SPLASH_UNLOCK_PREMIUM"] == "1" {
-            let module = try await makeDefault(accessPolicy: AlwaysUnlockedPolicy())
-            module.entitlements = store
-            await store.start()
-            return module
+            return try await makeAlwaysUnlocked(store: store)
         }
         #endif
         let module = try await makeDefault(accessPolicy: store)
+        module.entitlements = store
+        // Observer: when the App Store says the purchase is gone, hidden content is revealed so a refunded
+        // customer is never locked out of their own library. Wired only on this path — on the unlocked paths
+        // the policy is always-unlocked while `store` still reports the *real* entitlement, so wiring it
+        // there would wipe a developer's hidden content on every run.
+        store.onEntitlementAbsent = { [weak module] in
+            await module?.privacy?.revealAllAfterRevocation()
+        }
+        await store.start()
+        return module
+        #endif
+    }
+
+    /// The wiring shared by both unlock overrides. `onEntitlementAbsent` is deliberately left unwired: the
+    /// policy is open but `store` still reports the real (absent) entitlement, and hooking it up here would
+    /// erase hidden content on every launch.
+    private static func makeAlwaysUnlocked(store: PremiumEntitlementStore) async throws -> AppModule {
+        let module = try await makeDefault(accessPolicy: AlwaysUnlockedPolicy())
         module.entitlements = store
         await store.start()
         return module

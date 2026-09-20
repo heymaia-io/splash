@@ -88,6 +88,20 @@ public struct AppRootView: View {
         ) {
             if let store = session.entitlements { PaywallView(store: store) }
         }
+        // Revealing content someone deliberately hid is a privacy event, so it is never silent.
+        .alert(
+            "Your private content is visible again",
+            isPresented: Binding(
+                get: { session.privacy?.didRevealAfterRevocation ?? false },
+                set: { if !$0 { session.privacy?.acknowledgeRevocationReveal() } })
+        ) {
+            Button("OK") { session.privacy?.acknowledgeRevocationReveal() }
+        } message: {
+            Text("""
+                The offline reading and private content purchase is no longer active on this Apple \
+                Account, so everything you had hidden was unhidden. Buy again to hide content.
+                """)
+        }
         .onChange(of: session.authState.state) { _, state in
             if state == .authenticationRequired {
                 mainModel?.stopListening()
