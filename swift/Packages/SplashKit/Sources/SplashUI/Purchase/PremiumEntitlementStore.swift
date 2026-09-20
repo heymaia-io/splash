@@ -4,11 +4,11 @@ import StoreKit
 
 /// Product sold by the app: one-time, non-consumable unlock of offline reading **and** private content.
 public enum PremiumProduct {
-    /// **Do not change this id.** It is registered in App Store Connect and changing it orphans every
-    /// existing purchase. It still reads `.offline` because the product predates the privacy feature; the
-    /// surrounding types are named `Premium*` because one purchase now unlocks both. The mismatch is
-    /// deliberate, not a bug.
-    public static let id = "com.heymaia.splash.offline"
+    /// **Do not change this id once the app has shipped.** From the first release on, it is registered in
+    /// App Store Connect and changing it orphans every existing purchase. It still reads `.offline` because
+    /// the product predates the privacy feature; the surrounding types are named `Premium*` because one
+    /// purchase now unlocks both. The mismatch is deliberate, not a bug.
+    public static let id = "io.heymaia.splash.offline"
 }
 
 /// What the entitlement store needs from the App Store (Strategy/Adapter — StoreKit in the app, fake in tests).
@@ -44,8 +44,13 @@ public enum PurchaseOutcome: Sendable, Equatable {
 }
 
 /// Observable entitlement state + the `PremiumAccessPolicy` gate used by downloads, offline mode and the
-/// private area. A refund/revocation blocks new downloads, entering offline mode and revealing private
-/// content; already downloaded files are kept, and nothing that was hidden becomes visible.
+/// private area.
+///
+/// A refund/revocation blocks new downloads and entering offline mode; already downloaded files are kept and
+/// stay readable, because a refund should not delete anyone's files. Hidden content is *revealed* rather
+/// than stranded: leaving it hidden with the reveal gesture gated would lock a paying-then-refunded customer
+/// out of their own library permanently. That reveal is wired by the composition root through
+/// `onEntitlementAbsent` — this type deliberately knows nothing about privacy.
 @MainActor
 @Observable
 public final class PremiumEntitlementStore: PremiumAccessPolicy {
@@ -54,10 +59,21 @@ public final class PremiumEntitlementStore: PremiumAccessPolicy {
     public private(set) var isLoadingProduct = false
     public private(set) var isPurchasing = false
     public private(set) var message: String?
+    /// Why `product` is nil, when it is. Drives the paywall's disabled state.
+    public private(set) var productLoadFailure: (any Error)?
+    /// Nothing can be bought without a product, so the buy button must not pretend otherwise.
+    public var canPurchase: Bool { product != nil }
     /// Drives the paywall sheet.
     public var isPaywallPresented = false
     /// Which feature was blocked, so the sheet leads with that. Set by `requestUnlock(for:)`.
     public private(set) var paywallContext: PaywallContext = .offline
+
+    /// Called whenever the App Store has been asked and answered that there is **no** entitlement — at
+    /// launch and on every later revocation. Never fired from the `false` default before `start()` has
+    /// asked, so nothing acts on a state we have not actually confirmed.
+    ///
+    /// Wired in `AppModule.makeDefaultWithStore()`; see the note there about the debug bypass.
+    public var onEntitlementAbsent: (@MainActor () async -> Void)?
 
     private let provider: any PremiumStoreProvider
     private var updatesTask: Task<Void, Never>?
@@ -69,10 +85,14 @@ public final class PremiumEntitlementStore: PremiumAccessPolicy {
     /// Call once at launch: reads the current entitlement and listens for changes.
     public func start() async {
         isUnlocked = await provider.hasEntitlement()
+        if !isUnlocked { await onEntitlementAbsent?() }
         if updatesTask == nil {
             let updates = provider.entitlementUpdates()
             updatesTask = Task { [weak self] in
-                for await unlocked in updates { self?.isUnlocked = unlocked }
+                for await unlocked in updates {
+                    self?.isUnlocked = unlocked
+                    if !unlocked { await self?.onEntitlementAbsent?() }
+                }
             }
         }
         await loadProduct()
@@ -81,7 +101,20 @@ public final class PremiumEntitlementStore: PremiumAccessPolicy {
     public func loadProduct() async {
         isLoadingProduct = true
         defer { isLoadingProduct = false }
-        product = try? await provider.productInfo()
+        do {
+            product = try await provider.productInfo()
+            productLoadFailure = nil
+        } catch {
+            product = nil
+            productLoadFailure = error
+            // The whole point of D8: a `try?` here made a misconfigured product indistinguishable from a
+            // flaky network, in the one situation where the developer most needs to know which it is.
+            if let store = error as? StoreKitPremiumProvider.StoreError {
+                print("[Splash] paywall: \(store.diagnosticDescription)")
+            } else {
+                print("[Splash] paywall: could not load product — \(error)")
+            }
+        }
     }
 
     public func requestUnlock(for context: PaywallContext) {
@@ -129,18 +162,27 @@ public final class PremiumEntitlementStore: PremiumAccessPolicy {
 public struct StoreKitPremiumProvider: PremiumStoreProvider {
     public init() {}
 
-    private func loadProduct() async throws -> Product? {
-        try await Product.products(for: [PremiumProduct.id]).first
+    private func loadProduct() async throws -> Product {
+        let products: [Product]
+        do {
+            products = try await Product.products(for: [PremiumProduct.id])
+        } catch {
+            throw StoreError.storeUnreachable(underlying: error)
+        }
+        // An empty list is not an error to StoreKit, so it has to become one here or it degrades into a
+        // priceless paywall with no explanation anywhere.
+        guard let product = products.first else { throw StoreError.productNotConfigured }
+        return product
     }
 
     public func productInfo() async throws -> PremiumProductInfo? {
-        guard let product = try await loadProduct() else { return nil }
+        let product = try await loadProduct()
         return PremiumProductInfo(
             displayName: product.displayName, displayPrice: product.displayPrice, description: product.description)
     }
 
     public func purchase() async throws -> PurchaseOutcome {
-        guard let product = try await loadProduct() else { throw StoreError.productUnavailable }
+        let product = try await loadProduct()
         switch try await product.purchase() {
         case .success(let verification):
             let transaction = try Self.verified(verification)
@@ -193,9 +235,36 @@ public struct StoreKitPremiumProvider: PremiumStoreProvider {
     }
 
     public enum StoreError: LocalizedError {
-        case productUnavailable
+        /// The App Store answered, but with no product for `PremiumProduct.id`. In practice that is never a
+        /// network problem: the id does not exist in App Store Connect, or the Paid Apps agreement is not
+        /// signed, or the build's bundle id does not match the one the product belongs to. Kept separate
+        /// from a transport failure so the message does not blame the customer's connection for a
+        /// configuration mistake that only the developer can fix.
+        case productNotConfigured
+        /// Could not reach the App Store at all.
+        case storeUnreachable(underlying: any Error)
+
         public var errorDescription: String? {
-            String(localized: "The App Store is not available right now. Please try again later.")
+            switch self {
+            case .productNotConfigured:
+                String(localized: "This purchase is not available right now. Please try again later.")
+            case .storeUnreachable:
+                String(localized: "The App Store is not available right now. Please try again later.")
+            }
+        }
+
+        /// What goes in a log, not in front of a customer.
+        public var diagnosticDescription: String {
+            switch self {
+            case .productNotConfigured:
+                """
+                No App Store product for id '\(PremiumProduct.id)'. Check that the in-app purchase exists in \
+                App Store Connect with exactly that id, that the Paid Apps agreement is signed, and that the \
+                bundle id matches.
+                """
+            case .storeUnreachable(let underlying):
+                "Could not reach the App Store: \(underlying)"
+            }
         }
     }
 }

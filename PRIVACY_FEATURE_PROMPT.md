@@ -250,9 +250,9 @@ One product gates both offline reading and privacy, so the types are named `Prem
 (`PremiumAccessPolicy`, `PremiumEntitlementStore`, `PremiumStoreProvider`, `PremiumProductInfo`,
 `PremiumProduct`).
 
-**Do not change the product id.** It stays `"com.heymaia.splash.offline"` — it is registered in App Store
-Connect and changing it orphans every existing purchase. Comment this, or the mismatch will look like a
-bug.
+**Do not change the product id once the app has shipped.** It is `"io.heymaia.splash.offline"` — from the
+first release on it is registered in App Store Connect and changing it orphans every existing purchase.
+Comment this, or the mismatch will look like a bug.
 
 `PaywallView` takes a `PaywallContext` (icon, title, subtitle, benefits) with `.offline` and `.privacy`
 presets. Both must say the one purchase unlocks both, or two paywalls for one SKU reads as a dark pattern

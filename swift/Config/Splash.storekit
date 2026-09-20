@@ -20,7 +20,7 @@
           "locale" : "es_MX"
         }
       ],
-      "productID" : "com.heymaia.splash.offline",
+      "productID" : "io.heymaia.splash.offline",
       "referenceName" : "Offline Reading",
       "type" : "NonConsumable"
     }

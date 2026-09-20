@@ -59,7 +59,9 @@ public struct PaywallView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
-                        .disabled(store.isPurchasing)
+                        // Without a product there is nothing to buy, so an enabled button could only
+                        // produce an error the customer cannot act on.
+                        .disabled(store.isPurchasing || !store.canPurchase)
 
                         Button("Restore purchases") { Task { await store.restore() } }
                             .disabled(store.isPurchasing)
@@ -93,7 +95,7 @@ extension PaywallView {
             } else if store.isLoadingProduct {
                 ProgressView()
             } else {
-                Text("Price unavailable — check your connection and try again.")
+                Text("This purchase is not available right now. Please try again later.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

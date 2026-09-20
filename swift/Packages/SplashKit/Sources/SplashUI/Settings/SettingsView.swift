@@ -51,6 +51,9 @@ public struct SettingsView: View {
                     }
                 }
             }
+            if let entitlements = session.entitlements {
+                PurchaseSettingsSection(store: entitlements)
+            }
             Section("Account") {
                 NavigationLink { AccountSettingsView(session: session, onLoggedOut: onLoggedOut) } label: {
                     Label("My account", systemImage: "person.crop.circle")
