@@ -19,7 +19,7 @@ public struct LoginView: View {
             if let error = model.autoLoginError, showAutoLoginError {
                 autoLoginErrorView(error)
             } else if model.state == .uninitialized {
-                ProgressView()
+                SplashLoadingView()
             } else {
                 form
             }

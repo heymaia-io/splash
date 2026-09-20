@@ -67,7 +67,7 @@ public struct AppRootView: View {
                     }
                     .id(session.contentGeneration)
                 } else {
-                    ProgressView().onAppear {
+                    SplashLoadingView().onAppear {
                         let model = MainScreenViewModel(
                             authState: session.authState, settings: session.settings,
                             hiddenFilter: { session.privacy?.filter() ?? .disabled })

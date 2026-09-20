@@ -79,7 +79,7 @@ struct BootstrapView: View {
                     "Splash failed to start", systemImage: "exclamationmark.triangle",
                     description: Text(error.localizedDescription))
             } else {
-                ProgressView()
+                SplashLoadingView()
             }
         }
         .task {

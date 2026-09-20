@@ -530,6 +530,16 @@ struct AboutView: View {
 
     var body: some View {
         Form {
+            Section {
+                VStack(spacing: 12) {
+                    AppLogoView(size: 96)
+                        .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+                    Text("Splash").font(.title2.bold())
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
+            .listRowBackground(Color.clear)
             LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                 .modifier(PrivacyHelpTapTarget(isPresented: $showsPrivacyHelp))
             if showsPrivacyHelp {
