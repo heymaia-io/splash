@@ -32,7 +32,7 @@ public struct AppRootView: View {
     private let session: any AppSession
     @State private var loginModel: LoginViewModel
     @State private var mainModel: MainScreenViewModel?
-    @State private var readingBook: SplashBook?
+    @State private var readingBook: ReadRequest?
     /// Resolved just before presenting the image reader (see `readingApi(for:)`).
     @State private var readerApi: (any KomgaApi)?
     @State private var epubModel: EpubReaderModel?
@@ -161,27 +161,28 @@ public struct AppRootView: View {
             }
             if let initialBook, !openedInitialBook {
                 openedInitialBook = true
-                open(initialBook)
+                open(ReadRequest(book: initialBook))
             }
         }
         #if os(iOS)
-        .fullScreenCover(item: $readingBook) { book in reader(book, navigator: model.navigator) }
+        .fullScreenCover(item: $readingBook) { request in reader(request, navigator: model.navigator) }
         .fullScreenCover(item: $epubModel) { epub in epubReader(epub) }
         #else
-        .sheet(item: $readingBook) { book in reader(book, navigator: model.navigator) }
+        .sheet(item: $readingBook) { request in reader(request, navigator: model.navigator) }
         .sheet(item: $epubModel) { epub in epubReader(epub) }
         #endif
     }
 
     /// EPUB books go to the Readium reader (plan Phase 15); everything else (CBZ, images, PDF) to the image
     /// reader. EPUBs that Komga marks as DiViNa-compatible (fixed-layout comics) also use the image reader.
-    private func open(_ book: SplashBook) {
+    private func open(_ request: ReadRequest) {
+        let book = request.book
         // This is the one path into the reader that does not come through a filtered listing — it is also
         // reached by `initialBook` at launch, which is restored from the last session and can name a book
         // hidden since. Silently doing nothing is deliberate: an error would confirm the book exists.
         guard !(session.privacy?.filter() ?? .disabled).isHidden(book: book) else { return }
         guard book.media.mediaProfile == .epub, !book.media.epubDivinaCompatible else {
-            Task { readerApi = await session.readingApi(for: book); readingBook = book }
+            Task { readerApi = await session.readingApi(for: book); readingBook = request }
             return
         }
         Task {
@@ -204,8 +205,9 @@ public struct AppRootView: View {
     }
 
     /// Image reader pushed over the main navigator (Kotlin: `navigator.parent.push(ImageReaderScreen)`).
-    private func reader(_ book: SplashBook, navigator: MainNavigator) -> some View {
-        ReaderView(model: session.viewModelFactory.readerViewModel(bookId: book.id, api: readerApi)) { exit in
+    private func reader(_ request: ReadRequest, navigator: MainNavigator) -> some View {
+        ReaderView(model: session.viewModelFactory.readerViewModel(
+            bookId: request.book.id, api: readerApi, initialPage: request.page)) { exit in
             readingBook = nil
             readerApi = nil
             // Finishing the last book returns to its series (`navigator replace MainScreen(SeriesScreen)`).

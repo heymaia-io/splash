@@ -70,23 +70,26 @@ public final class ViewModelFactory {
             hiddenFilter: hiddenFilter, hiddenChanges: hiddenChanges)
     }
 
+    /// `api` pins a screen to a specific store (the Downloads tab passes the offline one). Server-side
+    /// deletion is only offered on the active API: the offline store cannot delete files on Komga.
     func seriesViewModel(
         seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil, offlineApi: (any KomgaApi)? = nil,
         downloadFilter: BookDownloadFilter = .all
     ) -> SeriesViewModel {
         SeriesViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, settings: settings,
                         events: events, offlineApi: offlineApi, downloadFilter: downloadFilter,
+                        allowsServerDelete: api == nil,
                         hiddenFilter: hiddenFilter, hiddenChanges: hiddenChanges)
     }
 
     func bookViewModel(bookId: KomgaBookId, api: (any KomgaApi)? = nil) -> BookViewModel {
         BookViewModel(bookId: bookId, api: api ?? self.api, authState: authState, events: events,
-                      hiddenFilter: hiddenFilter)
+                      allowsServerDelete: api == nil, hiddenFilter: hiddenFilter)
     }
 
     func oneshotViewModel(seriesId: KomgaSeriesId, api: (any KomgaApi)? = nil) -> OneshotViewModel {
         OneshotViewModel(seriesId: seriesId, api: api ?? self.api, authState: authState, events: events,
-                         hiddenFilter: hiddenFilter)
+                         allowsServerDelete: api == nil, hiddenFilter: hiddenFilter)
     }
 
     func collectionViewModel(collectionId: KomgaCollectionId) -> CollectionViewModel {
@@ -102,9 +105,11 @@ public final class ViewModelFactory {
     /// `api` overrides the active API for this reader only — used to read a downloaded book from the
     /// offline store while the rest of the app stays online.
     public func readerViewModel(
-        bookId: KomgaBookId, siblings: BookSiblingsContext = .series, api: (any KomgaApi)? = nil
+        bookId: KomgaBookId, siblings: BookSiblingsContext = .series, api: (any KomgaApi)? = nil,
+        initialPage: Int? = nil
     ) -> ReaderViewModel {
-        ReaderViewModel(bookId: bookId, api: api ?? self.api, settings: imageReaderSettings, siblings: siblings)
+        ReaderViewModel(bookId: bookId, api: api ?? self.api, settings: imageReaderSettings, siblings: siblings,
+                        initialPage: initialPage)
     }
 
     func facetViewModel(_ facet: BrowseFacet) -> FacetBrowseViewModel {

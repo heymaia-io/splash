@@ -11,11 +11,16 @@ public final class BookViewModel {
     public private(set) var state: LoadState<Void> = .uninitialized
     public private(set) var book: SplashBook?
     public private(set) var readLists: [KomgaReadList] = []
+    /// The book's pages for the thumbnail grid; stays `.uninitialized` while the media is not ready.
+    public private(set) var pages: LoadState<[KomgaBookPage]> = .uninitialized
     public private(set) var actionError: String?
+    public private(set) var isDeleting = false
 
     private let api: any KomgaApi
     private let authState: KomgaAuthenticationState
     private let events: KomgaEventSource
+    /// False when `api` is the offline store, whose `deleteBook` only drops the local download.
+    private let allowsServerDelete: Bool
     private var eventTask: Task<Void, Never>?
     @ObservationIgnored private lazy var reloader = ReloadScheduler(cooldown: .seconds(1)) { [weak self] in
         await self?.loadBook()
@@ -25,15 +30,20 @@ public final class BookViewModel {
     private let hiddenFilter: @MainActor () -> HiddenContentFilter
 
     init(bookId: KomgaBookId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource,
+         allowsServerDelete: Bool = true,
          hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
         self.bookId = bookId
         self.api = api
         self.authState = authState
         self.events = events
+        self.allowsServerDelete = allowsServerDelete
         self.hiddenFilter = hiddenFilter
     }
 
     public var library: KomgaLibrary? { book.flatMap { b in authState.libraries.first { $0.id == b.libraryId } } }
+
+    /// Deleting a file is an ADMIN-only Komga call; other roles never see the action.
+    public var canDelete: Bool { allowsServerDelete && (authState.authenticatedUser?.isAdmin ?? false) }
 
     public func initialize() async {
         guard state.isUninitialized else { return }
@@ -43,14 +53,54 @@ public final class BookViewModel {
             case .bookChanged(let p) where p.bookId == self.bookId: self.reloader.request()
             case .readProgressChanged(let p) where p.bookId == self.bookId: self.reloader.request()
             case .readProgressDeleted(let p) where p.bookId == self.bookId: self.reloader.request()
+            // Our own delete: reloading would only surface a 404 while the screen is being popped.
+            case .bookDeleted(let p) where p.bookId == self.bookId: break
             default: break
             }
         }
         await loadBook()
-        readLists = (try? await api.bookApi.getAllReadListsByBook(bookId)) ?? []
+        async let lists = api.bookApi.getAllReadListsByBook(bookId)
+        await loadPagesIfNeeded()
+        readLists = (try? await lists) ?? []
     }
 
-    public func reload() async { await loadBook() }
+    public func reload() async {
+        await loadBook()
+        await loadPagesIfNeeded()
+    }
+
+    /// Fetches the page list once per analysed version of the book. EPUBs have no image pages unless Komga
+    /// marks them DiViNa-compatible, so they keep the grid hidden.
+    public func loadPagesIfNeeded() async {
+        guard pages.isUninitialized, let book, book.media.status == .ready,
+              book.media.mediaProfile != .epub || book.media.epubDivinaCompatible
+        else { return }
+        pages = .loading
+        do {
+            pages = .success(try await api.bookApi.getBookPages(bookId))
+        } catch {
+            if error.isCancellation { pages = .uninitialized } else { pages = .error(error) }
+        }
+    }
+
+    /// Deletes the file on the server and empties the library trash. Returns true when the file is gone,
+    /// even if emptying the trash failed — that failure is reported through `actionError` instead.
+    public func deleteBook() async -> Bool {
+        guard let book, canDelete, !isDeleting else { return false }
+        isDeleting = true
+        actionError = nil
+        defer { isDeleting = false }
+        do {
+            try await BookDeleter.deleteAndEmptyTrash(book, api: api, events: events)
+            return true
+        } catch let error as BookDeleter.TrashNotEmptied {
+            actionError = error.localizedDescription
+            return true
+        } catch {
+            if !error.isCancellation { actionError = error.localizedDescription }
+            return false
+        }
+    }
 
     public func markAsRead() async {
         await perform { try await $0.bookApi.markReadProgress(self.bookId, request: .init(completed: true)) }
@@ -82,6 +132,11 @@ public final class BookViewModel {
                 book = nil
                 throw KomgaAPIError.httpStatus(code: 404, body: Data())
             }
+            // A re-analysis changes the page list, so let the grid fetch it again.
+            if let previous = book, previous.media.pagesCount != loaded.media.pagesCount
+                || previous.media.status != loaded.media.status {
+                pages = .uninitialized
+            }
             book = loaded
             state = .success(())
         } catch {
@@ -94,7 +149,9 @@ public final class BookViewModel {
 struct BookScreen: View {
     @State var model: BookViewModel
     let navigate: (Destination) -> Void
-    let onRead: (SplashBook) -> Void
+    let onRead: (ReadRequest) -> Void
+    /// Called once the book no longer exists on the server, so the owner can leave this screen.
+    var onDeleted: () -> Void = {}
 
     var body: some View {
         Group {
@@ -105,7 +162,7 @@ struct BookScreen: View {
                 ProgressView()
             default:
                 if let book = model.book { BookDetails(book: book, library: model.library, model: model,
-                                                       navigate: navigate, onRead: onRead) }
+                                                       navigate: navigate, onRead: onRead, onDeleted: onDeleted) }
             }
         }
         .navigationTitle(model.book?.metadata.title ?? "")
@@ -122,8 +179,10 @@ struct BookDetails: View {
     let library: KomgaLibrary?
     let model: BookViewModel
     let navigate: (Destination) -> Void
-    let onRead: (SplashBook) -> Void
+    let onRead: (ReadRequest) -> Void
+    let onDeleted: () -> Void
     @Environment(\.offlineController) private var offline
+    @State private var confirmDelete = false
 
     var body: some View {
         ScrollView {
@@ -147,7 +206,7 @@ struct BookDetails: View {
                             Text(verbatim: release.description).font(.subheadline).foregroundStyle(.secondary)
                         }
                         progressLabel
-                        Button { onRead(book) } label: {
+                        Button { onRead(ReadRequest(book: book)) } label: {
                             Label(readButtonTitle, systemImage: "book")
                         }
                         .buttonStyle(.borderedProminent)
@@ -175,19 +234,44 @@ struct BookDetails: View {
                     if let library { LabeledContent("Library", value: library.name) }
                 }
                 .font(.footnote)
+                if !model.pages.isUninitialized {
+                    Text("Pages").font(.headline)
+                    BookPagesGrid(bookId: book.id, pages: model.pages) { page in
+                        onRead(ReadRequest(book: book, page: page))
+                    }
+                }
             }
             .padding()
         }
         .toolbar {
-            Menu {
-                Button("Mark as read") { Task { await model.markAsRead() } }
-                Button("Mark as unread") { Task { await model.markAsUnread() } }
-                HideMenuButton(
-                    target: .book(book.id), downloadedBook: book,
-                    onDeleteDownload: offline.map { controller in { controller.delete(book: book.id) } })
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
+            if model.isDeleting {
+                ProgressView()
+            } else {
+                Menu {
+                    Button("Mark as read") { Task { await model.markAsRead() } }
+                    Button("Mark as unread") { Task { await model.markAsUnread() } }
+                    HideMenuButton(
+                        target: .book(book.id), downloadedBook: book,
+                        onDeleteDownload: offline.map { controller in { controller.delete(book: book.id) } })
+                    if model.canDelete {
+                        Divider()
+                        Button(role: .destructive) { confirmDelete = true } label: {
+                            Label("Delete book", systemImage: "trash")
+                        }
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
             }
+        }
+        .confirmationDialog(
+            BookDeleteDialog.title(for: book), isPresented: $confirmDelete, titleVisibility: .visible
+        ) {
+            Button(BookDeleteDialog.confirm, role: .destructive) {
+                Task { if await model.deleteBook() { onDeleted() } }
+            }
+        } message: {
+            Text(BookDeleteDialog.warning)
         }
     }
 
@@ -219,15 +303,18 @@ public final class OneshotViewModel {
     private let api: any KomgaApi
     private let authState: KomgaAuthenticationState
     private let events: KomgaEventSource
+    private let allowsServerDelete: Bool
 
     private let hiddenFilter: @MainActor () -> HiddenContentFilter
 
     init(seriesId: KomgaSeriesId, api: any KomgaApi, authState: KomgaAuthenticationState, events: KomgaEventSource,
+         allowsServerDelete: Bool = true,
          hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled }) {
         self.seriesId = seriesId
         self.api = api
         self.authState = authState
         self.events = events
+        self.allowsServerDelete = allowsServerDelete
         self.hiddenFilter = hiddenFilter
     }
 
@@ -244,7 +331,8 @@ public final class OneshotViewModel {
                 throw KomgaAPIError.httpStatus(code: 404, body: Data())
             }
             bookModel = BookViewModel(
-                bookId: book.id, api: api, authState: authState, events: events, hiddenFilter: hiddenFilter)
+                bookId: book.id, api: api, authState: authState, events: events,
+                allowsServerDelete: allowsServerDelete, hiddenFilter: hiddenFilter)
             state = .success(())
         } catch {
             if !error.isCancellation { state = .error(error) }
@@ -255,12 +343,13 @@ public final class OneshotViewModel {
 struct OneshotScreen: View {
     @State var model: OneshotViewModel
     let navigate: (Destination) -> Void
-    let onRead: (SplashBook) -> Void
+    let onRead: (ReadRequest) -> Void
+    var onDeleted: () -> Void = {}
 
     var body: some View {
         Group {
             if let bookModel = model.bookModel {
-                BookScreen(model: bookModel, navigate: navigate, onRead: onRead)
+                BookScreen(model: bookModel, navigate: navigate, onRead: onRead, onDeleted: onDeleted)
             } else if case .error(let error) = model.state {
                 ErrorView(error: error) {}
             } else {

@@ -9,6 +9,37 @@ import Testing
         PaginationBar.items(current: current, total: total, window: window)
     }
 
+    // MARK: Fitting the available width
+
+    @Test func aWideEnoughRowShowsEveryPage() {
+        let window = PaginationBar.window(fitting: 12, current: 4, total: 10)
+        #expect(items(4, of: 10, window: window).count == 10)
+    }
+
+    @Test func aNarrowRowFillsEverySlotBeforeCollapsing() {
+        let window = PaginationBar.window(fitting: 9, current: 10, total: 20)
+        #expect(items(10, of: 20, window: window).count == 9)
+        // One more neighbour on each side would need two more slots than there are.
+        #expect(items(10, of: 20, window: window + 1).count > 9)
+    }
+
+    @Test func theWindowNeverDropsBelowOne() {
+        #expect(PaginationBar.window(fitting: 0, current: 50, total: 100) == 1)
+        #expect(PaginationBar.window(fitting: 3, current: 1, total: 2) >= 1)
+    }
+
+    @Test func capacityGrowsWithWidthAndShrinksWithDigits() {
+        let narrow = PaginationBar.slotCapacity(width: 320, totalPages: 9)
+        let wide = PaginationBar.slotCapacity(width: 1000, totalPages: 9)
+        let wideThreeDigits = PaginationBar.slotCapacity(width: 1000, totalPages: 999)
+        #expect(wide > narrow)
+        #expect(wideThreeDigits < wide)
+        // Five page slots plus two chevrons is the floor, whatever the width says.
+        #expect(PaginationBar.slotCapacity(width: 0, totalPages: 999) == 7)
+    }
+
+    // MARK: Item arithmetic
+
     @Test func shortRunsShowEveryPage() {
         #expect(items(1, of: 2) == [.page(1), .page(2)])
         #expect(items(3, of: 5) == [.page(1), .page(2), .page(3), .page(4), .page(5)])

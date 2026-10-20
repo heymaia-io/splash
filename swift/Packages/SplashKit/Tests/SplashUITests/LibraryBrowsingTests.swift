@@ -38,6 +38,25 @@ import Testing
         #expect(parts.last == .titleSort(.doesNotBeginWith("z")))
     }
 
+    // Books have no `titleSort` server side, so the same chip must fall back to the plain `title`.
+    @Test func aLetterMatchesTheBookTitlePrefix() throws {
+        #expect(LetterFilter.all.bookCondition == nil)
+        let condition = try #require(LetterFilter.letter("B").bookCondition)
+        #expect(condition == .title(.beginsWith("b")))
+        #expect(try Self.json(condition) == #"{"title":{"operator":"beginsWith","value":"b"}}"#)
+    }
+
+    @Test func hashExcludesEveryLetterForBooksToo() throws {
+        let condition = try #require(LetterFilter.nonAlphabetic.bookCondition)
+        guard case .allOf(let parts) = condition else {
+            Issue.record("expected an allOf group, got \(condition)")
+            return
+        }
+        #expect(parts.count == 26)
+        #expect(parts.first == .title(.doesNotBeginWith("a")))
+        #expect(parts.last == .title(.doesNotBeginWith("z")))
+    }
+
     @Test func theBarOffersAllHashAndTwentySixLetters() {
         let cases = SeriesLetterFilter.allCases
         #expect(cases.count == 28)

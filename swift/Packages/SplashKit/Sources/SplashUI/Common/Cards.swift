@@ -175,12 +175,19 @@ struct ReadListCard: View {
 }
 
 /// `Pagination.kt` — page navigation + page size.
+///
+/// The bar measures the width it is given, works out how many slots fit, and shows the widest page window
+/// those slots allow. A short run shows every page, centred at its natural width; a long one uses every
+/// slot before collapsing the rest behind "…".
 struct PaginationBar: View {
     let currentPage: Int
     let totalPages: Int
     let onPageChange: (Int) -> Void
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var availableWidth: CGFloat = 0
+
+    /// Gap between slots, shared by the layout and the capacity estimate.
+    static let slotSpacing: CGFloat = 6
 
     /// One slot in the bar: either a page you can tap, or a run of pages collapsed behind an ellipsis.
     enum Item: Hashable {
@@ -190,7 +197,7 @@ struct PaginationBar: View {
 
     var body: some View {
         if totalPages > 1 {
-            HStack(spacing: 6) {
+            HStack(spacing: Self.slotSpacing) {
                 Button { onPageChange(currentPage - 1) } label: { Image(systemName: "chevron.left") }
                     .disabled(currentPage <= 1)
 
@@ -221,12 +228,39 @@ struct PaginationBar: View {
             }
             .monospacedDigit()
             .buttonStyle(.bordered)
+            // Full width so the measurement sees the whole row and a short run sits centred inside it.
+            .frame(maxWidth: .infinity)
+            // The first pass lays out at width 0 (the minimal window); the real width arrives right after.
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
             .padding()
         }
     }
 
-    /// How many pages to show either side of the current one. A phone cannot fit the wider window.
-    private var window: Int { sizeClass == .compact ? 1 : 2 }
+    /// How many pages to show either side of the current one, as many as the measured width allows.
+    private var window: Int {
+        let slots = Self.slotCapacity(width: availableWidth, totalPages: totalPages)
+        return Self.window(fitting: slots - 2, current: currentPage, total: totalPages) // minus the chevrons
+    }
+
+    /// How many equally wide slots fit in `width`. The estimate is deliberately conservative: a slot must
+    /// hold the widest page number at body size inside a bordered button, so a bar never overflows its edge.
+    /// Never below the five page slots `1 … current … total` needs, plus the two chevrons.
+    static func slotCapacity(width: CGFloat, totalPages: Int, spacing: CGFloat = slotSpacing) -> Int {
+        let digits = CGFloat(String(max(totalPages, 1)).count)
+        let minimumSlotWidth = digits * 11 + 26
+        let fitting = Int(((width + spacing) / (minimumSlotWidth + spacing)).rounded(.down))
+        return max(fitting, 7)
+    }
+
+    /// The widest window whose items fit in `pageSlots`. Walks down from "everything visible" so a short
+    /// run shows every page and a long run fills every slot before collapsing into gaps.
+    static func window(fitting pageSlots: Int, current: Int, total: Int) -> Int {
+        for window in stride(from: max(total, 1), through: 1, by: -1)
+        where items(current: current, total: total, window: window).count <= pageSlots {
+            return window
+        }
+        return 1
+    }
 
     /// The first and last page are always reachable in one tap; everything between them collapses into
     /// at most two ellipsis menus, so the bar has a fixed maximum width however deep the library is.

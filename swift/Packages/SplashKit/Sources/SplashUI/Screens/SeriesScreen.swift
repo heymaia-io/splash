@@ -6,8 +6,31 @@ import SwiftUI
 /// `BookFilterState.BooksSort`
 public enum BooksSortOption: String, CaseIterable, Identifiable, Sendable {
     case numberAsc, numberDesc
+    /// [NUEVO] Title and page-count orderings, so a series can be browsed by name or by length.
+    case titleAsc, titleDesc, pagesAsc, pagesDesc
     public var id: String { rawValue }
-    var komgaSort: KomgaSort { KomgaBooksSort.byNumber(self == .numberAsc ? .asc : .desc) }
+
+    var komgaSort: KomgaSort {
+        switch self {
+        case .numberAsc: KomgaBooksSort.byNumber(.asc)
+        case .numberDesc: KomgaBooksSort.byNumber(.desc)
+        case .titleAsc: KomgaBooksSort.byTitle(.asc)
+        case .titleDesc: KomgaBooksSort.byTitle(.desc)
+        case .pagesAsc: KomgaBooksSort.byPagesCount(.asc)
+        case .pagesDesc: KomgaBooksSort.byPagesCount(.desc)
+        }
+    }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .numberAsc: "Number (ascending)"
+        case .numberDesc: "Number (descending)"
+        case .titleAsc: "Title (A–Z)"
+        case .titleDesc: "Title (Z–A)"
+        case .pagesAsc: "Pages (fewest first)"
+        case .pagesDesc: "Pages (most first)"
+        }
+    }
 }
 
 /// [NUEVO] Which books of a series to show, by download state.
@@ -57,10 +80,12 @@ public final class SeriesViewModel {
     public private(set) var books: [SplashBook] = []
     public private(set) var currentPage = 1
     public private(set) var totalPages = 1
-    public var sort: BooksSortOption = .numberAsc
+    public var sort: BooksSortOption = .pagesDesc
     public var downloadFilter: BookDownloadFilter
     /// [NUEVO] Book-tag filter. Several tags read as OR, like the library's series-tag filter.
     public var selectedTags: Set<String> = []
+    /// [NUEVO] First-letter filter on the book title, the same `ALL # A–Z` row the library has for series.
+    public var letter: LetterFilter = .all
     public private(set) var availableTags: [String] = []
     public private(set) var collections: [KomgaCollection] = []
     public private(set) var actionError: String?
@@ -72,6 +97,8 @@ public final class SeriesViewModel {
     private let authState: KomgaAuthenticationState
     private let settings: CommonSettingsRepository
     private let events: KomgaEventSource
+    /// False when `api` is the offline store, whose `deleteBook` only drops the local download.
+    private let allowsServerDelete: Bool
     private var eventTask: Task<Void, Never>?
     @ObservationIgnored private lazy var seriesReloader = ReloadScheduler(cooldown: .seconds(1)) { [weak self] in
         await self?.loadSeries()
@@ -90,6 +117,7 @@ public final class SeriesViewModel {
          settings: CommonSettingsRepository, events: KomgaEventSource,
          offlineApi: (any KomgaApi)? = nil,
          downloadFilter: BookDownloadFilter = .all,
+         allowsServerDelete: Bool = true,
          hiddenFilter: @escaping @MainActor () -> HiddenContentFilter = { .disabled },
          hiddenChanges: @escaping @MainActor () -> AsyncStream<PrivacyState> = { noHiddenChanges }) {
         self.seriesId = seriesId
@@ -99,12 +127,16 @@ public final class SeriesViewModel {
         self.authState = authState
         self.settings = settings
         self.events = events
+        self.allowsServerDelete = allowsServerDelete
         self.hiddenFilter = hiddenFilter
         self.hiddenChanges = hiddenChanges
     }
 
     public var library: KomgaLibrary? { series.flatMap { s in authState.libraries.first { $0.id == s.libraryId } } }
     public var cardWidth: CGFloat { CGFloat(settings.value.cardWidth) }
+
+    /// Deleting a file is an ADMIN-only Komga call; other roles never see the action.
+    public var canDelete: Bool { allowsServerDelete && (authState.authenticatedUser?.isAdmin ?? false) }
 
     public func initialize() async {
         guard state.isUninitialized else { return }
@@ -132,6 +164,7 @@ public final class SeriesViewModel {
     public func onSortChange() async { await loadBooks(page: 1) }
     public func onDownloadFilterChange() async { await loadBooks(page: 1) }
     public func onTagFilterChange() async { await loadBooks(page: 1) }
+    public func onLetterChange() async { await loadBooks(page: 1) }
 
     public func toggleTag(_ tag: String) {
         if selectedTags.contains(tag) { selectedTags.remove(tag) } else { selectedTags.insert(tag) }
@@ -146,6 +179,12 @@ public final class SeriesViewModel {
     }
     public func markBookUnread(_ book: SplashBook) async {
         await perform { try await $0.bookApi.deleteReadProgress(book.id) }
+    }
+
+    /// Deletes the file on the server and empties the library trash; the `bookDeleted` event refreshes the list.
+    public func deleteBook(_ book: SplashBook) async {
+        guard canDelete else { return }
+        await perform { try await BookDeleter.deleteAndEmptyTrash(book, api: $0, events: self.events) }
     }
 
     private func perform(_ action: @escaping (any KomgaApi) async throws -> Void) async {
@@ -190,6 +229,9 @@ public final class SeriesViewModel {
             var conditions: [BookCondition] = [.seriesId(.isEqualTo(seriesId))] + hidden.bookConditions
             if !selectedTags.isEmpty {
                 conditions.append(.anyOf(selectedTags.sorted().map { .tag(.isEqualTo($0)) }))
+            }
+            if let letterCondition = letter.bookCondition {
+                conditions.append(letterCondition)
             }
             let search = KomgaBookSearch(condition: .allOf(conditions))
 
@@ -253,7 +295,9 @@ struct SeriesScreen: View {
     @State var model: SeriesViewModel
     @Environment(\.offlineController) private var offline
     let navigate: (Destination) -> Void
-    let onRead: (SplashBook) -> Void
+    let onRead: (ReadRequest) -> Void
+    /// The book whose server-side delete is awaiting confirmation.
+    @State private var pendingDelete: SplashBook?
 
     var body: some View {
         Group {
@@ -274,6 +318,12 @@ struct SeriesScreen: View {
         .refreshable { await model.reload() }
     }
 
+    private var pageBar: some View {
+        PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
+            Task { await model.onPageChange(page) }
+        }
+    }
+
     private func content(_ series: KomgaSeries) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -292,19 +342,20 @@ struct SeriesScreen: View {
                 }
                 switch model.currentTab {
                 case .books:
+                    AlphabeticalNavigationBar(selection: $model.letter)
                     Picker("Show", selection: $model.downloadFilter) {
                         ForEach(BookDownloadFilter.allCases) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
+                    // Above and below the grid so a page can be changed from either edge.
+                    pageBar
                     CardGrid(items: model.books, cardWidth: model.cardWidth) { book in
                         Button { navigate(.book(book.id)) } label: { BookCard(book: book) }
                             .buttonStyle(.plain)
                             .contextMenu { bookMenu(book) }
                     }
-                    PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
-                        Task { await model.onPageChange(page) }
-                    }
+                    pageBar
                 case .collections:
                     CardGrid(items: model.collections, cardWidth: model.cardWidth) { item in
                         Button { navigate(.collection(item.id)) } label: { CollectionCard(collection: item) }
@@ -316,14 +367,16 @@ struct SeriesScreen: View {
         }
         .toolbar {
             if let next = nextBook {
-                Button { onRead(next) } label: { Label("Read", systemImage: "book") }
+                Button { onRead(ReadRequest(book: next)) } label: { Label("Read", systemImage: "book") }
             }
             Menu {
                 Picker("Sort", selection: $model.sort) {
-                    Text("Number (ascending)").tag(BooksSortOption.numberAsc)
-                    Text("Number (descending)").tag(BooksSortOption.numberDesc)
+                    ForEach(BooksSortOption.allCases) { Text($0.label).tag($0) }
                 }
-                Divider()
+            } label: {
+                Label("Filters", systemImage: "arrow.up.arrow.down")
+            }
+            Menu {
                 Button("Mark as read") { Task { await model.markAsRead() } }
                 Button("Mark as unread") { Task { await model.markAsUnread() } }
                 if let offline, !offline.isOfflineMode {
@@ -344,9 +397,19 @@ struct SeriesScreen: View {
                 Label("More", systemImage: "ellipsis.circle")
             }
         }
+        .confirmationDialog(
+            pendingDelete.map(BookDeleteDialog.title(for:)) ?? "",
+            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+            titleVisibility: .visible, presenting: pendingDelete
+        ) { book in
+            Button(BookDeleteDialog.confirm, role: .destructive) { Task { await model.deleteBook(book) } }
+        } message: { _ in
+            Text(BookDeleteDialog.warning)
+        }
         .onChange(of: model.sort) { Task { await model.onSortChange() } }
         .onChange(of: model.downloadFilter) { Task { await model.onDownloadFilterChange() } }
         .onChange(of: model.selectedTags) { Task { await model.onTagFilterChange() } }
+        .onChange(of: model.letter) { Task { await model.onLetterChange() } }
     }
 
     private var tagFilterMenu: some View {
@@ -376,7 +439,7 @@ struct SeriesScreen: View {
     }
 
     @ViewBuilder private func bookMenu(_ book: SplashBook) -> some View {
-        Button { onRead(book) } label: { Label("Read", systemImage: "book") }
+        Button { onRead(ReadRequest(book: book)) } label: { Label("Read", systemImage: "book") }
         if let offline, !offline.isOfflineMode {
             if book.downloaded {
                 Button("Delete download", role: .destructive) { offline.delete(book: book.id) }
@@ -392,6 +455,12 @@ struct SeriesScreen: View {
         HideMenuButton(
             target: .book(book.id), downloadedBook: book,
             onDeleteDownload: offline.map { controller in { controller.delete(book: book.id) } })
+        if model.canDelete {
+            Divider()
+            Button(role: .destructive) { pendingDelete = book } label: {
+                Label("Delete book", systemImage: "trash")
+            }
+        }
     }
 }
 

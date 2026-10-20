@@ -82,6 +82,8 @@ struct CollectionScreen: View {
             if case .error(let error) = model.state {
                 ScreenErrorView(error: error, retry: { Task { await model.load(page: 1) } })
             }
+            // Above and below the grid so a page can be changed from either edge.
+            pageBar
             CardGrid(items: model.series, cardWidth: model.cardWidth) { item in
                 Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
                     SeriesCard(series: item)
@@ -89,14 +91,18 @@ struct CollectionScreen: View {
                 .buttonStyle(.plain)
             }
             .padding(.vertical)
-            PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
-                Task { await model.load(page: page) }
-            }
+            pageBar
         }
         .overlay { if model.state.isLoading { ProgressView() } }
         .navigationTitle(model.collection?.name ?? "")
         .task { await model.initialize() }
         .refreshable { await model.load(page: 1) }
+    }
+
+    private var pageBar: some View {
+        PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
+            Task { await model.load(page: page) }
+        }
     }
 }
 
@@ -181,18 +187,24 @@ struct ReadListScreen: View {
             if case .error(let error) = model.state {
                 ScreenErrorView(error: error, retry: { Task { await model.load(page: 1) } })
             }
+            // Above and below the grid so a page can be changed from either edge.
+            pageBar
             CardGrid(items: model.books, cardWidth: model.cardWidth) { book in
                 Button { navigate(.book(book.id)) } label: { BookCard(book: book, showSeries: true) }
                     .buttonStyle(.plain)
             }
             .padding(.vertical)
-            PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
-                Task { await model.load(page: page) }
-            }
+            pageBar
         }
         .overlay { if model.state.isLoading { ProgressView() } }
         .navigationTitle(model.readList?.name ?? "")
         .task { await model.initialize() }
         .refreshable { await model.load(page: 1) }
+    }
+
+    private var pageBar: some View {
+        PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
+            Task { await model.load(page: page) }
+        }
     }
 }

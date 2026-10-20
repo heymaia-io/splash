@@ -19,7 +19,7 @@ struct DestinationView: View {
     /// [NUEVO] Persists the library switcher's choice so the Library tab reopens on it. Supplied by the
     /// composition root, which owns the `MainScreenViewModel` this view does not see.
     var rememberLibrary: (KomgaLibraryId?) -> Void = { _ in }
-    let onRead: (SplashBook) -> Void
+    let onRead: (ReadRequest) -> Void
 
     var body: some View {
         switch destination {
@@ -40,9 +40,10 @@ struct DestinationView: View {
                 navigate: navigate, onRead: onRead)
         case .oneshot(let id):
             OneshotScreen(model: factory.oneshotViewModel(seriesId: id, api: api), navigate: navigate,
-                          onRead: onRead)
+                          onRead: onRead, onDeleted: goBack)
         case .book(let id):
-            BookScreen(model: factory.bookViewModel(bookId: id, api: api), navigate: navigate, onRead: onRead)
+            BookScreen(model: factory.bookViewModel(bookId: id, api: api), navigate: navigate, onRead: onRead,
+                       onDeleted: goBack)
         case .collection(let id):
             CollectionScreen(model: factory.collectionViewModel(collectionId: id), navigate: navigate)
         case .readList(let id):
@@ -63,5 +64,10 @@ struct DestinationView: View {
 
     private func navigate(_ destination: Destination) {
         navigator.push(destination)
+    }
+
+    /// Leaves a detail screen whose item no longer exists (a deleted book).
+    private func goBack() {
+        navigator.pop()
     }
 }

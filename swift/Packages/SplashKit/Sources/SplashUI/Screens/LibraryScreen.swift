@@ -406,6 +406,8 @@ struct LibraryScreen: View {
                 Text("\(model.totalCount) series")
                     .font(.footnote).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+                // The bar sits above and below the grid so a page can be changed from either edge.
+                if !model.isShuffled { pageBar }
                 CardGrid(items: model.series, cardWidth: model.cardWidth) { item in
                     Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
                         SeriesCard(series: item)
@@ -420,11 +422,15 @@ struct LibraryScreen: View {
                     .buttonBorderShape(.capsule)
                     .frame(maxWidth: .infinity)
                 } else {
-                    PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
-                        Task { await model.onPageChange(page) }
-                    }
+                    pageBar
                 }
             }
+        }
+    }
+
+    private var pageBar: some View {
+        PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
+            Task { await model.onPageChange(page) }
         }
     }
 }

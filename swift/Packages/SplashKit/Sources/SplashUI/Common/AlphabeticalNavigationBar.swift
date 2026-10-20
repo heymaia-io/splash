@@ -6,10 +6,10 @@ import SwiftUI
 /// of a large library.
 ///
 /// Each case knows the search condition it stands for (strategy), so view models only ask for
-/// `seriesCondition` and the bar itself stays presentation-only. Komga's own grouping endpoint
-/// (`POST api/v1/series/list/alphabetical-groups`) is deliberately not used: it would only add per-letter
-/// counts, at the cost of a new API method plus offline SQL.
-public enum SeriesLetterFilter: Hashable, Identifiable, Sendable {
+/// `seriesCondition` / `bookCondition` and the bar itself stays presentation-only. Komga's own grouping
+/// endpoint (`POST api/v1/series/list/alphabetical-groups`) is deliberately not used: it would only add
+/// per-letter counts, at the cost of a new API method plus offline SQL.
+public enum LetterFilter: Hashable, Identifiable, Sendable {
     case all
     /// Titles beginning with none of A–Z: numbers, symbols, non-Latin scripts. The web UI labels this `#`.
     case nonAlphabetic
@@ -17,8 +17,8 @@ public enum SeriesLetterFilter: Hashable, Identifiable, Sendable {
 
     public static let alphabet: [Character] = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-    public static let allCases: [SeriesLetterFilter] =
-        [.all, .nonAlphabetic] + alphabet.map(SeriesLetterFilter.letter)
+    public static let allCases: [LetterFilter] =
+        [.all, .nonAlphabetic] + alphabet.map(LetterFilter.letter)
 
     public var id: String {
         switch self {
@@ -55,16 +55,33 @@ public enum SeriesLetterFilter: Hashable, Identifiable, Sendable {
             .titleSort(.beginsWith(String(character).lowercased()))
         }
     }
+
+    /// Same filter for the books of a series. Komga has no `titleSort` condition for books (upstream
+    /// `TitleSort` is series-only), so this matches the plain `title`. Books named "Chapter 12" or "Vol. 3"
+    /// therefore collect under `#`, exactly as the web UI would group them.
+    public var bookCondition: BookCondition? {
+        switch self {
+        case .all:
+            nil
+        case .nonAlphabetic:
+            .allOf(Self.alphabet.map { .title(.doesNotBeginWith(String($0).lowercased())) })
+        case .letter(let character):
+            .title(.beginsWith(String(character).lowercased()))
+        }
+    }
 }
 
-/// The `ALL # A–Z` chip row. Every letter stays tappable — an empty one simply shows "No series".
+/// Kept for readability at the series-only call sites; the enum itself is shared with books.
+public typealias SeriesLetterFilter = LetterFilter
+
+/// The `ALL # A–Z` chip row. Every letter stays tappable — an empty one simply shows an empty grid.
 struct AlphabeticalNavigationBar: View {
-    @Binding var selection: SeriesLetterFilter
+    @Binding var selection: LetterFilter
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(SeriesLetterFilter.allCases) { item in
+                ForEach(LetterFilter.allCases) { item in
                     let isSelected = item == selection
                     Button(item.label) { selection = item }
                         .font(.caption.weight(isSelected ? .bold : .regular))

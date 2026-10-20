@@ -53,16 +53,20 @@ public final class ReaderViewModel {
     private let api: any KomgaApi
     private let siblings: BookSiblingsContext
     private let initialBookId: KomgaBookId
+    /// 1-based page to open on instead of the saved read progress (the pages grid on the book screen).
+    /// Only applies to the initial book; moving to a sibling book keeps the usual progress logic.
+    private let initialPage: Int?
 
     public init(
         bookId: KomgaBookId, api: any KomgaApi, settings: ImageReaderSettingsRepository,
-        siblings: BookSiblingsContext = .series, markReadProgress: Bool = true
+        siblings: BookSiblingsContext = .series, markReadProgress: Bool = true, initialPage: Int? = nil
     ) {
         self.initialBookId = bookId
         self.api = api
         self.settings = settings
         self.siblings = siblings
         self.markReadProgress = markReadProgress
+        self.initialPage = initialPage
         pages = PageImageLoader(api: { [api] in api })
     }
 
@@ -91,6 +95,9 @@ public final class ReaderViewModel {
             } else {
                 readProgressPage = 1
             }
+            if let initialPage {
+                readProgressPage = Self.clampedPage(initialPage, count: books?.currentBookPages.count ?? 0)
+            }
             let loadedSeries = try await series
             self.series = loadedSeries
             readerType = Self.readerType(for: loadedSeries.metadata.readingDirection, fallback: settings.value.readerType)
@@ -98,6 +105,11 @@ public final class ReaderViewModel {
         } catch {
             if !error.isCancellation { state = .error(error) }
         }
+    }
+
+    /// Keeps a requested start page inside the book: pages are 1-based, and a book with no pages still opens on 1.
+    nonisolated static func clampedPage(_ page: Int, count: Int) -> Int {
+        min(max(page, 1), max(count, 1))
     }
 
     /// Series reading direction wins over the user's default (`ReaderState.initialize`). PANELS is unsupported.

@@ -57,7 +57,9 @@ public enum KomgaBooksSort {
     public static func byReleaseDate(_ d: KomgaSort.Direction) -> KomgaSort { .by("metadata.releaseDate", d) }
     public static func bySeriesTitle(_ d: KomgaSort.Direction) -> KomgaSort { .by("series", d) }
     public static func byTitle(_ d: KomgaSort.Direction) -> KomgaSort { .by("metadata.title", d) }
-    public static func byPagesCount(_ d: KomgaSort.Direction) -> KomgaSort { .by("metadata.pagesCount", d) }
+    /// Page count lives on the media, not the metadata: Komga's book sort map has `media.pagesCount` and
+    /// silently ignores unknown keys, so `metadata.pagesCount` left the list unsorted.
+    public static func byPagesCount(_ d: KomgaSort.Direction) -> KomgaSort { .by("media.pagesCount", d) }
 }
 
 /// `KomgaSort.KomgaUserSort` factories.

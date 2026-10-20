@@ -149,15 +149,21 @@ struct FacetBrowseScreen: View {
         if model.series.isEmpty {
             ContentUnavailableView("No series", systemImage: "books.vertical")
         } else {
+            // Above and below the grid so a page can be changed from either edge.
+            seriesPageBar
             CardGrid(items: model.series, cardWidth: model.cardWidth) { item in
                 Button { navigate(item.oneshot ? .oneshot(item.id) : .series(item.id)) } label: {
                     SeriesCard(series: item)
                 }
                 .buttonStyle(.plain)
             }
-            PaginationBar(currentPage: model.seriesPage, totalPages: model.seriesTotalPages) { page in
-                Task { await model.onSeriesPageChange(page) }
-            }
+            seriesPageBar
+        }
+    }
+
+    private var seriesPageBar: some View {
+        PaginationBar(currentPage: model.seriesPage, totalPages: model.seriesTotalPages) { page in
+            Task { await model.onSeriesPageChange(page) }
         }
     }
 
@@ -165,15 +171,20 @@ struct FacetBrowseScreen: View {
         if model.books.isEmpty {
             ContentUnavailableView("No books", systemImage: "book")
         } else {
+            booksPageBar
             CardGrid(items: model.books, cardWidth: model.cardWidth) { book in
                 Button { navigate(book.oneshot ? .oneshot(book.seriesId) : .book(book.id)) } label: {
                     BookCard(book: book, showSeries: true)
                 }
                 .buttonStyle(.plain)
             }
-            PaginationBar(currentPage: model.booksPage, totalPages: model.booksTotalPages) { page in
-                Task { await model.onBooksPageChange(page) }
-            }
+            booksPageBar
+        }
+    }
+
+    private var booksPageBar: some View {
+        PaginationBar(currentPage: model.booksPage, totalPages: model.booksTotalPages) { page in
+            Task { await model.onBooksPageChange(page) }
         }
     }
 }
