@@ -90,16 +90,11 @@ public final class BookViewModel {
         isDeleting = true
         actionError = nil
         defer { isDeleting = false }
-        do {
-            try await BookDeleter.deleteAndEmptyTrash(book, api: api, events: events)
-            return true
-        } catch let error as BookDeleter.TrashNotEmptied {
-            actionError = error.localizedDescription
-            return true
-        } catch {
-            if !error.isCancellation { actionError = error.localizedDescription }
-            return false
+        let outcome = await ServerFileDeleter.outcome {
+            try await ServerFileDeleter.deleteAndEmptyTrash(BookTarget(book: book), api: api, events: events)
         }
+        actionError = outcome.message
+        return outcome.isGone
     }
 
     public func markAsRead() async {
@@ -253,7 +248,7 @@ struct BookDetails: View {
                     HideMenuButton(
                         target: .book(book.id), downloadedBook: book,
                         onDeleteDownload: offline.map { controller in { controller.delete(book: book.id) } })
-                    if model.canDelete {
+                    if model.canDelete && offline?.isOfflineMode != true {
                         Divider()
                         Button(role: .destructive) { confirmDelete = true } label: {
                             Label("Delete book", systemImage: "trash")

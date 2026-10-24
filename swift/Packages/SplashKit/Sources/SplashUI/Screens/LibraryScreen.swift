@@ -65,6 +65,7 @@ public final class LibraryViewModel {
     /// [NUEVO] Tag filter. Several tags read as OR, matching the web UI.
     public var selectedTags: Set<String> = []
     public private(set) var availableTags: [String] = []
+    public private(set) var actionError: String?
 
     public private(set) var collections: [KomgaCollection] = []
     public private(set) var readLists: [KomgaReadList] = []
@@ -132,6 +133,31 @@ public final class LibraryViewModel {
         case .collections: if collections.isEmpty { await loadCollections() }
         case .readLists: if readLists.isEmpty { await loadReadLists() }
         }
+    }
+
+    // MARK: Series admin (long-press menu)
+
+    private var seriesActions: SeriesAdminActions { SeriesAdminActions(api: api, events: events) }
+
+    public func canManageSeries(isOfflineMode: Bool) -> Bool {
+        SeriesAdminActions.canManage(authState: authState, isOfflineMode: isOfflineMode)
+    }
+
+    public func renameSeries(_ series: KomgaSeries, to title: String) async {
+        actionError = nil
+        do {
+            try await seriesActions.rename(series, to: title)
+            await reload()
+        } catch {
+            if !error.isCancellation { actionError = error.localizedDescription }
+        }
+    }
+
+    public func deleteSeries(_ series: KomgaSeries) async {
+        actionError = nil
+        let outcome = await ServerFileDeleter.outcome { try await self.seriesActions.delete(series) }
+        await reload()
+        actionError = outcome.message
     }
 
     public func onPageChange(_ page: Int) async { await loadSeriesPage(page) }
@@ -266,6 +292,9 @@ struct LibraryScreen: View {
     let navigate: (Destination) -> Void
     /// Switching library replaces the tab's root instead of pushing, so the stack stays one level deep.
     let selectLibrary: (KomgaLibraryId?) -> Void
+    @Environment(\.offlineController) private var offline
+    @State private var renamingSeries: KomgaSeries?
+    @State private var deletingSeries: KomgaSeries?
 
     var body: some View {
         ScrollView {
@@ -318,6 +347,10 @@ struct LibraryScreen: View {
                 Label("Sort", systemImage: "arrow.up.arrow.down")
             }
         }
+        .seriesAdminDialogs(
+            renaming: $renamingSeries, deleting: $deletingSeries,
+            onRename: { series, title in Task { await model.renameSeries(series, to: title) } },
+            onDelete: { series in Task { await model.deleteSeries(series) } })
         .onChange(of: model.sort) { Task { await model.onFilterChange() } }
         .onChange(of: model.letter) { Task { await model.onFilterChange() } }
         .onChange(of: model.selectedTags) { Task { await model.onFilterChange() } }
@@ -403,6 +436,9 @@ struct LibraryScreen: View {
             if model.series.isEmpty {
                 ContentUnavailableView("No series", systemImage: "books.vertical")
             } else {
+                if let error = model.actionError {
+                    Text(error).foregroundStyle(.red).font(.footnote).padding(.horizontal)
+                }
                 Text("\(model.totalCount) series")
                     .font(.footnote).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
@@ -413,6 +449,7 @@ struct LibraryScreen: View {
                         SeriesCard(series: item)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu { seriesMenu(item) }
                 }
                 if model.isShuffled {
                     Button { Task { await model.shuffle() } } label: {
@@ -424,6 +461,16 @@ struct LibraryScreen: View {
                 } else {
                     pageBar
                 }
+            }
+        }
+    }
+
+    /// Long-press menu of a series card; empty (so no menu appears) for non-admins and in offline mode.
+    @ViewBuilder private func seriesMenu(_ series: KomgaSeries) -> some View {
+        if model.canManageSeries(isOfflineMode: offline?.isOfflineMode ?? false) {
+            Button { renamingSeries = series } label: { Label("Rename…", systemImage: "pencil") }
+            Button(role: .destructive) { deletingSeries = series } label: {
+                Label("Delete series", systemImage: "trash")
             }
         }
     }

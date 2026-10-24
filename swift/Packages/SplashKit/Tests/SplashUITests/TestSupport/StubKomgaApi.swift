@@ -78,6 +78,14 @@ final class RecordingLibraryApi: KomgaLibraryApi, @unchecked Sendable {
 
 final class StubSeriesApi: KomgaSeriesApi, @unchecked Sendable {
     var onGetOneSeries: @Sendable (KomgaSeriesId) async throws -> KomgaSeries = { _ in fatalError("getOneSeries") }
+    var onDelete: @Sendable (KomgaSeriesId) async throws -> Void = { _ in }
+
+    private let recordedDeletes = Mutex<[KomgaSeriesId]>([])
+    private let recordedUpdates = Mutex<[KomgaSeriesMetadataUpdateRequest]>([])
+    /// Series whose file delete was requested, in order.
+    var deletes: [KomgaSeriesId] { recordedDeletes.withLock { $0 } }
+    /// Metadata updates sent, in order.
+    var updates: [KomgaSeriesMetadataUpdateRequest] { recordedUpdates.withLock { $0 } }
 
     func getOneSeries(_ seriesId: KomgaSeriesId) async throws -> KomgaSeries { try await onGetOneSeries(seriesId) }
 
@@ -88,8 +96,13 @@ final class StubSeriesApi: KomgaSeriesApi, @unchecked Sendable {
     func refreshMetadata(_ seriesId: KomgaSeriesId) async throws { fatalError() }
     func markAsRead(_ seriesId: KomgaSeriesId) async throws { fatalError() }
     func markAsUnread(_ seriesId: KomgaSeriesId) async throws { fatalError() }
-    func delete(_ seriesId: KomgaSeriesId) async throws { fatalError() }
-    func update(_ seriesId: KomgaSeriesId, request: KomgaSeriesMetadataUpdateRequest) async throws { fatalError() }
+    func delete(_ seriesId: KomgaSeriesId) async throws {
+        recordedDeletes.withLock { $0.append(seriesId) }
+        try await onDelete(seriesId)
+    }
+    func update(_ seriesId: KomgaSeriesId, request: KomgaSeriesMetadataUpdateRequest) async throws {
+        recordedUpdates.withLock { $0.append(request) }
+    }
     func getDefaultThumbnail(_ seriesId: KomgaSeriesId) async throws -> Data? { fatalError() }
     func getThumbnail(_ seriesId: KomgaSeriesId, thumbnailId: KomgaThumbnailId) async throws -> Data { fatalError() }
     func getThumbnails(_ seriesId: KomgaSeriesId) async throws -> [KomgaSeriesThumbnail] { fatalError() }
@@ -125,7 +138,7 @@ enum Fixture {
     static func book(
         _ id: String = "b1", series: String = "s1", library: String = "lib", pagesCount: Int = 10,
         status: KomgaMediaStatus = .ready, mediaProfile: MediaProfile? = .divina, epubDivinaCompatible: Bool = false,
-        readProgress: ReadProgress? = nil
+        readProgress: ReadProgress? = nil, deleted: Bool = false
     ) -> SplashBook {
         SplashBook(book: KomgaBook(
             id: KomgaBookId(id), seriesId: KomgaSeriesId(series), seriesTitle: series, libraryId: KomgaLibraryId(library),
@@ -137,7 +150,7 @@ enum Fixture {
             metadata: KomgaBookMetadata(
                 title: id, summary: "", number: "1", numberSort: 1, releaseDate: nil, authors: [], tags: [],
                 isbn: "", links: [], created: date, lastModified: date),
-            readProgress: readProgress, deleted: false, fileHash: "", oneshot: false))
+            readProgress: readProgress, deleted: deleted, fileHash: "", oneshot: false))
     }
 
     static func progress(page: Int, completed: Bool = false) -> ReadProgress {
@@ -152,13 +165,13 @@ enum Fixture {
         }
     }
 
-    static func series(_ id: String = "s1", library: String = "lib",
-                       readingDirection: KomgaReadingDirection? = nil) -> KomgaSeries {
+    static func series(_ id: String = "s1", library: String = "lib", title: String? = nil,
+                       readingDirection: KomgaReadingDirection? = nil, deleted: Bool = false) -> KomgaSeries {
         KomgaSeries(
             id: KomgaSeriesId(id), libraryId: KomgaLibraryId(library), name: id, url: "/data/\(id)",
             booksCount: 1, booksReadCount: 0, booksUnreadCount: 1, booksInProgressCount: 0,
-            metadata: KomgaSeriesMetadata(status: .ongoing, title: id, titleSort: id, readingDirection: readingDirection),
-            deleted: false, oneshot: false,
+            metadata: KomgaSeriesMetadata(status: .ongoing, title: title ?? id, titleSort: title ?? id, readingDirection: readingDirection),
+            deleted: deleted, oneshot: false,
             booksMetadata: KomgaSeriesBookMetadata(
                 authors: [], tags: [], releaseDate: nil, summary: "", summaryNumber: "",
                 created: date, lastModified: date),

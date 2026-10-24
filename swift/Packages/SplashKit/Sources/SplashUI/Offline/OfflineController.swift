@@ -135,6 +135,8 @@ public final class OfflineController {
         run { try await $0.deleteBook(id) }
         downloads[id] = nil
     }
+    /// Batch form of `delete(book:)`, so removing several downloads reuses the one-book path.
+    public func delete(books ids: [KomgaBookId]) { ids.forEach { delete(book: $0) } }
     public func delete(series id: KomgaSeriesId) { run { try await $0.deleteSeries(id) } }
     public func clearFinished() { run { try await $0.clearFinished() } }
 

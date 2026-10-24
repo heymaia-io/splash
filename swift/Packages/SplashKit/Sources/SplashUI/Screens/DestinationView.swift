@@ -37,7 +37,7 @@ struct DestinationView: View {
             SeriesScreen(
                 model: factory.seriesViewModel(
                     seriesId: id, api: api, offlineApi: offlineApi, downloadFilter: downloadFilter),
-                navigate: navigate, onRead: onRead)
+                navigate: navigate, onRead: onRead, onDeleted: goBack)
         case .oneshot(let id):
             OneshotScreen(model: factory.oneshotViewModel(seriesId: id, api: api), navigate: navigate,
                           onRead: onRead, onDeleted: goBack)

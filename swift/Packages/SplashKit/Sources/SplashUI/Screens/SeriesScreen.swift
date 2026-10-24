@@ -77,7 +77,17 @@ public final class SeriesViewModel {
     public private(set) var series: KomgaSeries?
     public var currentTab: Tab = .books
 
-    public private(set) var books: [SplashBook] = []
+    public private(set) var books: [SplashBook] = [] {
+        // A selection only ever covers what is on screen: paging, filtering or a reload must not leave
+        // invisible books ticked for a later delete.
+        didSet { selectedBookIds.formIntersection(books.map(\.id)) }
+    }
+    /// Batch mode: tapping a card ticks it instead of opening it. Leaving the mode drops the selection.
+    public var isSelecting = false {
+        didSet { if !isSelecting { selectedBookIds = [] } }
+    }
+    public private(set) var selectedBookIds: Set<KomgaBookId> = []
+    public private(set) var isDeletingSelection = false
     public private(set) var currentPage = 1
     public private(set) var totalPages = 1
     public var sort: BooksSortOption = .pagesDesc
@@ -184,7 +194,54 @@ public final class SeriesViewModel {
     /// Deletes the file on the server and empties the library trash; the `bookDeleted` event refreshes the list.
     public func deleteBook(_ book: SplashBook) async {
         guard canDelete else { return }
-        await perform { try await BookDeleter.deleteAndEmptyTrash(book, api: $0, events: self.events) }
+        await perform { try await ServerFileDeleter.deleteAndEmptyTrash(BookTarget(book: book), api: $0, events: self.events) }
+    }
+
+    // MARK: Series admin (rename / delete the whole series)
+
+    private var seriesActions: SeriesAdminActions { SeriesAdminActions(api: api, events: events) }
+
+    public func renameSeries(_ series: KomgaSeries, to title: String) async {
+        actionError = nil
+        do {
+            try await seriesActions.rename(series, to: title)
+            await loadSeries()
+        } catch {
+            if !error.isCancellation { actionError = error.localizedDescription }
+        }
+    }
+
+    /// Returns true when the series is gone from the server, so the screen can leave.
+    public func deleteSeries(_ series: KomgaSeries) async -> Bool {
+        guard canDelete else { return false }
+        actionError = nil
+        let outcome = await ServerFileDeleter.outcome { try await self.seriesActions.delete(series) }
+        actionError = outcome.message
+        return outcome.isGone
+    }
+
+    // MARK: Batch selection
+
+    public var selectedBooks: [SplashBook] { books.filter { selectedBookIds.contains($0.id) } }
+
+    public func toggleSelection(_ book: SplashBook) {
+        if selectedBookIds.contains(book.id) { selectedBookIds.remove(book.id) } else { selectedBookIds.insert(book.id) }
+    }
+
+    public func selectAllOnPage() { selectedBookIds = Set(books.map(\.id)) }
+
+    /// Deletes every selected book's file on the server; failures are listed in `actionError` while the
+    /// books that did go are removed from the list.
+    public func deleteSelected() async {
+        let targets = selectedBooks
+        guard canDelete, !targets.isEmpty, !isDeletingSelection else { return }
+        isDeletingSelection = true
+        actionError = nil
+        defer { isDeletingSelection = false }
+        let result = await ServerFileDeleter.delete(targets.map(BookTarget.init(book:)), api: api, events: events)
+        isSelecting = false
+        await reload()
+        actionError = result.errorSummary
     }
 
     private func perform(_ action: @escaping (any KomgaApi) async throws -> Void) async {
@@ -296,8 +353,14 @@ struct SeriesScreen: View {
     @Environment(\.offlineController) private var offline
     let navigate: (Destination) -> Void
     let onRead: (ReadRequest) -> Void
+    /// Called once the series no longer exists on the server, so the owner can leave this screen.
+    var onDeleted: () -> Void = {}
     /// The book whose server-side delete is awaiting confirmation.
     @State private var pendingDelete: SplashBook?
+    @State private var renamingSeries: KomgaSeries?
+    @State private var deletingSeries: KomgaSeries?
+    @State private var confirmBatchDelete = false
+    @State private var confirmBatchRemoveDownloads = false
 
     var body: some View {
         Group {
@@ -317,6 +380,10 @@ struct SeriesScreen: View {
         .task { await model.initialize() }
         .refreshable { await model.reload() }
     }
+
+    /// The model's admin check, minus offline mode: there the store's delete only drops local downloads, so
+    /// a "delete from server" action would be a lie.
+    private var canDeleteHere: Bool { model.canDelete && offline?.isOfflineMode != true }
 
     private var pageBar: some View {
         PaginationBar(currentPage: model.currentPage, totalPages: model.totalPages) { page in
@@ -351,9 +418,14 @@ struct SeriesScreen: View {
                     // Above and below the grid so a page can be changed from either edge.
                     pageBar
                     CardGrid(items: model.books, cardWidth: model.cardWidth) { book in
-                        Button { navigate(.book(book.id)) } label: { BookCard(book: book) }
-                            .buttonStyle(.plain)
-                            .contextMenu { bookMenu(book) }
+                        Button {
+                            if model.isSelecting { model.toggleSelection(book) } else { navigate(.book(book.id)) }
+                        } label: {
+                            BookCard(book: book)
+                                .overlay(alignment: .topLeading) { selectionBadge(for: book) }
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu { if !model.isSelecting { bookMenu(book) } }
                     }
                     pageBar
                 case .collections:
@@ -366,7 +438,10 @@ struct SeriesScreen: View {
             .padding(.vertical)
         }
         .toolbar {
-            if let next = nextBook {
+            if model.currentTab == .books, !model.books.isEmpty {
+                Button(model.isSelecting ? "Done" : "Select") { model.isSelecting.toggle() }
+            }
+            if !model.isSelecting, let next = nextBook {
                 Button { onRead(ReadRequest(book: next)) } label: { Label("Read", systemImage: "book") }
             }
             Menu {
@@ -393,6 +468,13 @@ struct SeriesScreen: View {
                     tagFilterMenu
                 }
                 HideMenuButton(target: .series(model.seriesId))
+                if canDeleteHere, let series = model.series {
+                    Divider()
+                    Button { renamingSeries = series } label: { Label("Rename…", systemImage: "pencil") }
+                    Button(role: .destructive) { deletingSeries = series } label: {
+                        Label("Delete series", systemImage: "trash")
+                    }
+                }
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
             }
@@ -406,10 +488,69 @@ struct SeriesScreen: View {
         } message: { _ in
             Text(BookDeleteDialog.warning)
         }
+        .toolbar { if model.isSelecting { selectionBar } }
+        .seriesAdminDialogs(
+            renaming: $renamingSeries, deleting: $deletingSeries,
+            onRename: { series, title in Task { await model.renameSeries(series, to: title) } },
+            onDelete: { series in Task { if await model.deleteSeries(series) { onDeleted() } } })
+        .confirmationDialog(
+            BookDeleteDialog.title(count: model.selectedBookIds.count), isPresented: $confirmBatchDelete,
+            titleVisibility: .visible
+        ) {
+            Button(BookDeleteDialog.confirm, role: .destructive) { Task { await model.deleteSelected() } }
+        } message: {
+            Text(BookDeleteDialog.warning)
+        }
+        .confirmationDialog(
+            "Remove downloaded copies?", isPresented: $confirmBatchRemoveDownloads, titleVisibility: .visible
+        ) {
+            Button("Remove downloads", role: .destructive) {
+                offline?.delete(books: model.selectedBooks.filter(\.downloaded).map(\.id))
+                model.isSelecting = false
+            }
+        } message: {
+            Text("Only the copies on this device are removed. The books stay on the server.")
+        }
         .onChange(of: model.sort) { Task { await model.onSortChange() } }
         .onChange(of: model.downloadFilter) { Task { await model.onDownloadFilterChange() } }
         .onChange(of: model.selectedTags) { Task { await model.onTagFilterChange() } }
         .onChange(of: model.letter) { Task { await model.onLetterChange() } }
+    }
+
+    @ViewBuilder private func selectionBadge(for book: SplashBook) -> some View {
+        if model.isSelecting {
+            Image(systemName: model.selectedBookIds.contains(book.id) ? "checkmark.circle.fill" : "circle")
+                .font(.title2)
+                .foregroundStyle(.white, model.selectedBookIds.contains(book.id) ? Color.accentColor : .black.opacity(0.4))
+                .padding(6)
+        }
+    }
+
+    #if os(iOS)
+    private static let selectionBarPlacement = ToolbarItemPlacement.bottomBar
+    #else
+    private static let selectionBarPlacement = ToolbarItemPlacement.automatic
+    #endif
+
+    /// Bottom bar of batch mode. Server delete is admin-only and never offered on the offline store;
+    /// removing downloads only needs a downloaded book in the selection.
+    @ToolbarContentBuilder private var selectionBar: some ToolbarContent {
+        ToolbarItemGroup(placement: Self.selectionBarPlacement) {
+            if model.isDeletingSelection {
+                ProgressView()
+            } else {
+                Button("Select all") { model.selectAllOnPage() }
+                Spacer()
+                let downloadedCount = model.selectedBooks.filter(\.downloaded).count
+                if offline != nil, downloadedCount > 0 {
+                    Button("Remove downloads (\(downloadedCount))") { confirmBatchRemoveDownloads = true }
+                }
+                if canDeleteHere {
+                    Button("Delete (\(model.selectedBookIds.count))", role: .destructive) { confirmBatchDelete = true }
+                        .disabled(model.selectedBookIds.isEmpty)
+                }
+            }
+        }
     }
 
     private var tagFilterMenu: some View {
@@ -455,7 +596,7 @@ struct SeriesScreen: View {
         HideMenuButton(
             target: .book(book.id), downloadedBook: book,
             onDeleteDownload: offline.map { controller in { controller.delete(book: book.id) } })
-        if model.canDelete {
+        if canDeleteHere {
             Divider()
             Button(role: .destructive) { pendingDelete = book } label: {
                 Label("Delete book", systemImage: "trash")
