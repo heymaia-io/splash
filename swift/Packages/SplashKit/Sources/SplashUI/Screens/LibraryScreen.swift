@@ -4,13 +4,17 @@ import Observation
 import SwiftUI
 
 /// `LibrarySeriesTabState.SeriesSort` (verbatim option set).
-public enum SeriesSortOption: String, CaseIterable, Identifiable, Sendable {
+public enum SeriesSortOption: String, SortOption {
     case updatedDesc, updatedAsc, releaseDateDesc, releaseDateAsc, titleAsc, titleDesc, dateAddedDesc, dateAddedAsc
     /// [NUEVO] Server-side shuffle. Komga re-rolls `random` on every request, so this one cannot be paged
     /// through — the screen shows a single shuffled page and a Shuffle button instead of the page bar.
     case random
 
     public var id: String { rawValue }
+
+    /// A random order is useless as a tie-breaker, and has no ties for anything to break.
+    var canBeSecondary: Bool { self != .random }
+    var canHaveSecondary: Bool { self != .random }
 
     var komgaSort: KomgaSort {
         switch self {
@@ -58,7 +62,8 @@ public final class LibraryViewModel {
     public private(set) var currentPage = 1
     public private(set) var totalPages = 1
     public private(set) var totalCount = 0
-    public var sort: SeriesSortOption = .titleAsc
+    /// Internal: `SortChain` is a UI-layer type, and nothing outside `SplashUI` reads the sort.
+    var sort = SortChain<SeriesSortOption>(primary: .titleAsc)
     public var searchTerm = ""
     /// [NUEVO] `ALL # A–Z` navigation, like the web UI's alphabetical bar.
     public var letter: SeriesLetterFilter = .all
@@ -81,7 +86,7 @@ public final class LibraryViewModel {
     private var hiddenTask: Task<Void, Never>?
     @ObservationIgnored private lazy var seriesReloader = ReloadScheduler(cooldown: .seconds(1)) { [weak self] in
         guard let self else { return }
-        await self.loadSeriesPage(self.currentPage)
+        await self.reloadCurrentPage()
     }
     @ObservationIgnored private lazy var countsReloader = ReloadScheduler(cooldown: .seconds(1)) { [weak self] in
         await self?.loadItemCounts()
@@ -105,7 +110,7 @@ public final class LibraryViewModel {
     public var libraries: [KomgaLibrary] { hiddenFilter().visible(authState.libraries) }
     public var cardWidth: CGFloat { CGFloat(settings.value.cardWidth) }
     /// A shuffled listing has no stable pages: the server reshuffles per request.
-    public var isShuffled: Bool { sort == .random }
+    public var isShuffled: Bool { sort.primary == .random }
 
     public func initialize() async {
         guard seriesState.isUninitialized else { return }
@@ -117,6 +122,7 @@ public final class LibraryViewModel {
         _ = await (counts, tags, page)
     }
 
+    /// Pull-to-refresh / hidden-content change: starts over from the first page.
     public func reload() async {
         await loadItemCounts()
         switch currentTab {
@@ -124,6 +130,21 @@ public final class LibraryViewModel {
         case .collections: await loadCollections()
         case .readLists: await loadReadLists()
         }
+    }
+
+    /// After a mutation (series delete / rename): same refresh, but the reader stays on their page.
+    func refreshInPlace() async {
+        await loadItemCounts()
+        switch currentTab {
+        case .series: await reloadCurrentPage()
+        case .collections: await loadCollections()
+        case .readLists: await loadReadLists()
+        }
+    }
+
+    private func reloadCurrentPage() async {
+        await PagePreservingReload.run(
+            page: currentPage, totalPages: { self.totalPages }, load: { await self.loadSeriesPage($0) })
     }
 
     public func onTabChange(_ tab: Tab) async {
@@ -147,7 +168,7 @@ public final class LibraryViewModel {
         actionError = nil
         do {
             try await seriesActions.rename(series, to: title)
-            await reload()
+            await refreshInPlace()
         } catch {
             if !error.isCancellation { actionError = error.localizedDescription }
         }
@@ -156,7 +177,7 @@ public final class LibraryViewModel {
     public func deleteSeries(_ series: KomgaSeries) async {
         actionError = nil
         let outcome = await ServerFileDeleter.outcome { try await self.seriesActions.delete(series) }
-        await reload()
+        await refreshInPlace()
         actionError = outcome.message
     }
 
@@ -336,9 +357,7 @@ struct LibraryScreen: View {
         .toolbar {
             tagFilterMenu
             Menu {
-                Picker("Sort", selection: $model.sort) {
-                    ForEach(SeriesSortOption.allCases) { Text($0.label).tag($0) }
-                }
+                SortChainMenu(chain: $model.sort)
                 // Only meaningful with a library actually selected; "All Libraries" has nothing to hide.
                 if let libraryId = model.libraryId {
                     HideMenuButton(target: .library(libraryId))

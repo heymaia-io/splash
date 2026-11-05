@@ -4,7 +4,7 @@ import Observation
 import SwiftUI
 
 /// `BookFilterState.BooksSort`
-public enum BooksSortOption: String, CaseIterable, Identifiable, Sendable {
+public enum BooksSortOption: String, SortOption {
     case numberAsc, numberDesc
     /// [NUEVO] Title and page-count orderings, so a series can be browsed by name or by length.
     case titleAsc, titleDesc, pagesAsc, pagesDesc
@@ -90,7 +90,8 @@ public final class SeriesViewModel {
     public private(set) var isDeletingSelection = false
     public private(set) var currentPage = 1
     public private(set) var totalPages = 1
-    public var sort: BooksSortOption = .pagesDesc
+    /// Pages (most first), ties alphabetical. Internal: `SortChain` is a UI-layer type.
+    var sort = SortChain<BooksSortOption>(primary: .pagesDesc, secondary: .titleAsc)
     public var downloadFilter: BookDownloadFilter
     /// [NUEVO] Book-tag filter. Several tags read as OR, like the library's series-tag filter.
     public var selectedTags: Set<String> = []
@@ -115,7 +116,7 @@ public final class SeriesViewModel {
     }
     @ObservationIgnored private lazy var booksReloader = ReloadScheduler(cooldown: .seconds(1)) { [weak self] in
         guard let self else { return }
-        await self.loadBooks(page: self.currentPage)
+        await self.reloadCurrentPage()
     }
 
     /// A provider, not a snapshot: re-read per fetch so unlocking takes effect without rebuilding the model.
@@ -156,7 +157,7 @@ public final class SeriesViewModel {
         hiddenTask = listenHidden(to: hiddenChanges) { [weak self] in
             guard let self else { return }
             await self.loadSeries()
-            await self.loadBooks(page: self.currentPage)
+            await self.reloadCurrentPage()
         }
         await loadSeries()
         async let books: Void = loadBooks(page: 1)
@@ -165,9 +166,21 @@ public final class SeriesViewModel {
         _ = await (books, collections, tags)
     }
 
+    /// Pull-to-refresh / retry: starts over from the first page.
     public func reload() async {
         await loadSeries()
         await loadBooks(page: 1)
+    }
+
+    /// After a mutation (delete, mark read…): same data refresh, but the reader stays on their page.
+    func refreshInPlace() async {
+        await loadSeries()
+        await reloadCurrentPage()
+    }
+
+    private func reloadCurrentPage() async {
+        await PagePreservingReload.run(
+            page: currentPage, totalPages: { self.totalPages }, load: { await self.loadBooks(page: $0) })
     }
 
     public func onPageChange(_ page: Int) async { await loadBooks(page: page) }
@@ -240,7 +253,7 @@ public final class SeriesViewModel {
         defer { isDeletingSelection = false }
         let result = await ServerFileDeleter.delete(targets.map(BookTarget.init(book:)), api: api, events: events)
         isSelecting = false
-        await reload()
+        await refreshInPlace()
         actionError = result.errorSummary
     }
 
@@ -248,7 +261,7 @@ public final class SeriesViewModel {
         do {
             actionError = nil
             try await action(api)
-            await reload()
+            await refreshInPlace()
         } catch {
             if !error.isCancellation { actionError = error.localizedDescription }
         }
@@ -445,9 +458,7 @@ struct SeriesScreen: View {
                 Button { onRead(ReadRequest(book: next)) } label: { Label("Read", systemImage: "book") }
             }
             Menu {
-                Picker("Sort", selection: $model.sort) {
-                    ForEach(BooksSortOption.allCases) { Text($0.label).tag($0) }
-                }
+                SortChainMenu(chain: $model.sort)
             } label: {
                 Label("Filters", systemImage: "arrow.up.arrow.down")
             }
