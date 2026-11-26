@@ -62,8 +62,10 @@ public final class LibraryViewModel {
     public private(set) var currentPage = 1
     public private(set) var totalPages = 1
     public private(set) var totalCount = 0
-    /// Internal: `SortChain` is a UI-layer type, and nothing outside `SplashUI` reads the sort.
-    var sort = SortChain<SeriesSortOption>(primary: .titleAsc)
+    static let defaultSort = SortChain<SeriesSortOption>(primary: .titleAsc)
+    /// Remembered across libraries and launches. Internal: `SortChain` is a UI-layer type, and nothing
+    /// outside `SplashUI` reads the sort.
+    var sort: SortChain<SeriesSortOption>
     public var searchTerm = ""
     /// [NUEVO] `ALL # A–Z` navigation, like the web UI's alphabetical bar.
     public var letter: SeriesLetterFilter = .all
@@ -100,6 +102,7 @@ public final class LibraryViewModel {
         self.libraryId = libraryId
         self.authState = authState
         self.settings = settings
+        sort = Self.rememberedSort(settings)
         self.events = events
         self.hiddenFilter = hiddenFilter
         self.hiddenChanges = hiddenChanges
@@ -183,6 +186,17 @@ public final class LibraryViewModel {
 
     public func onPageChange(_ page: Int) async { await loadSeriesPage(page) }
     public func onFilterChange() async { await loadSeriesPage(1) }
+    private static func rememberedSort(_ settings: CommonSettingsRepository) -> SortChain<SeriesSortOption> {
+        SortChain(saved: settings.value.seriesSort, default: defaultSort)
+    }
+
+    /// A screen left on the navigation stack picks up a sort chosen on a screen opened after it.
+    func restoreRememberedSort() { sort = Self.rememberedSort(settings) }
+
+    public func onSortChange() async {
+        settings.remember(sort, in: \.seriesSort)
+        await onFilterChange()
+    }
     /// Re-rolls the shuffle (the server does the shuffling; asking again is the whole operation).
     public func shuffle() async { await loadSeriesPage(1) }
 
@@ -370,7 +384,8 @@ struct LibraryScreen: View {
             renaming: $renamingSeries, deleting: $deletingSeries,
             onRename: { series, title in Task { await model.renameSeries(series, to: title) } },
             onDelete: { series in Task { await model.deleteSeries(series) } })
-        .onChange(of: model.sort) { Task { await model.onFilterChange() } }
+        .onChange(of: model.sort) { Task { await model.onSortChange() } }
+        .onAppear { model.restoreRememberedSort() }
         .onChange(of: model.letter) { Task { await model.onFilterChange() } }
         .onChange(of: model.selectedTags) { Task { await model.onFilterChange() } }
         .task { await model.initialize() }

@@ -114,6 +114,21 @@ extension Row {
     }
 }
 
+/// A `SavedSort` spans the `<prefix>_primary` / `<prefix>_secondary` columns; no primary means no sort.
+private extension Row {
+    func savedSort(_ prefix: String) -> SavedSort? {
+        guard let primary: String = self["\(prefix)_primary"] else { return nil }
+        return SavedSort(primary: primary, secondary: self["\(prefix)_secondary"])
+    }
+}
+
+private extension PersistenceContainer {
+    mutating func encode(_ sort: SavedSort?, prefix: String) {
+        self["\(prefix)_primary"] = sort?.primary
+        self["\(prefix)_secondary"] = sort?.secondary
+    }
+}
+
 /// `AppSettingsTable` row.
 private struct AppSettingsRow: FetchableRecord, PersistableRecord {
     static let databaseTableName = "AppSettings"
@@ -132,6 +147,8 @@ private struct AppSettingsRow: FetchableRecord, PersistableRecord {
         s.appTheme = try row.decodeEnum("app_theme")
         // Nullable, and NULL for every row written before the v3 migration.
         s.lastLibraryId = row["last_library_id"]
+        s.bookSort = row.savedSort("book_sort")
+        s.seriesSort = row.savedSort("series_sort")
         settings = s
     }
 
@@ -145,6 +162,8 @@ private struct AppSettingsRow: FetchableRecord, PersistableRecord {
         container["book_list_layout"] = settings.bookListLayout.rawValue
         container["app_theme"] = settings.appTheme.rawValue
         container["last_library_id"] = settings.lastLibraryId
+        container.encode(settings.bookSort, prefix: "book_sort")
+        container.encode(settings.seriesSort, prefix: "series_sort")
     }
 }
 

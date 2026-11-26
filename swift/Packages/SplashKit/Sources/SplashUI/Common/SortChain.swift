@@ -1,9 +1,11 @@
 import KomgaAPI
+import SplashCore
 import SwiftUI
 
 /// One selectable ordering (e.g. "Title A–Z"). Each screen's option enum conforms, so the chain below
 /// composes orderings without knowing which screen it serves (strategy pattern).
-protocol SortOption: CaseIterable, Identifiable, Hashable, Sendable where AllCases: RandomAccessCollection {
+protocol SortOption: CaseIterable, Identifiable, Hashable, Sendable, RawRepresentable
+where AllCases: RandomAccessCollection, RawValue == String {
     var komgaSort: KomgaSort { get }
     var label: LocalizedStringKey { get }
     /// False for orderings that make no sense as a tie-breaker (e.g. a random shuffle).
@@ -53,6 +55,30 @@ struct SortChain<Option: SortOption>: Hashable, Sendable {
 
     private mutating func dropInvalidSecondary() {
         if let secondary, !secondaryChoices.contains(secondary) { self.secondary = nil }
+    }
+}
+
+/// Persistence mapping, shared by every screen that remembers its sort.
+extension SortChain {
+    /// Restores a persisted choice. Nothing saved, or a name this version no longer knows, means `fallback`.
+    init(saved: SavedSort?, default fallback: SortChain) {
+        guard let saved, let primary = Option(rawValue: saved.primary) else {
+            self = fallback
+            return
+        }
+        self.init(primary: primary, secondary: saved.secondary.flatMap(Option.init(rawValue:)))
+    }
+
+    var saved: SavedSort { SavedSort(primary: primary.rawValue, secondary: secondary?.rawValue) }
+}
+
+extension CommonSettingsRepository {
+    /// Persisted fire-and-forget: a failed write costs the user their sort choice, not their data.
+    func remember<Option>(
+        _ chain: SortChain<Option>, in keyPath: WritableKeyPath<AppSettings, SavedSort?> & Sendable
+    ) {
+        let saved = chain.saved
+        Task { try? await set(keyPath, saved) }
     }
 }
 

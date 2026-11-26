@@ -24,6 +24,8 @@ xcuserdata/
 /reference/
 /swift/graphify-out/cache/
 /fixtures/komga/.env
+# Live Komga admin API key for maintenance scripts; never commit
+/.env
 
 # Plan de publicación (local, no se versiona)
 /PUBLISHING_PLAN.md

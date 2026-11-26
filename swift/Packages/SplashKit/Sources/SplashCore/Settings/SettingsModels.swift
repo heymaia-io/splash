@@ -50,6 +50,18 @@ public enum UpsamplingMode: String, Codable, Sendable, CaseIterable {
     case nearest = "NEAREST", bilinear = "BILINEAR", mitchell = "MITCHELL", catmullRom = "CATMULL_ROM"
 }
 
+/// [NUEVO] A "Sort by" + "Then by" choice as it is persisted. Raw option names, because `AppSettings` lives
+/// below the UI's sort enums; the UI resolves them and falls back to its default on a name it no longer knows.
+public struct SavedSort: Codable, Hashable, Sendable {
+    public var primary: String
+    public var secondary: String?
+
+    public init(primary: String, secondary: String? = nil) {
+        self.primary = primary
+        self.secondary = secondary
+    }
+}
+
 /// `snd.komelia.db.AppSettings` (update-check fields dropped: no in-app updater on iOS).
 public struct AppSettings: Codable, Hashable, Sendable {
     /// Base URL used before a server has ever been configured. RFC 2606 reserves `.invalid`, so a request
@@ -71,6 +83,10 @@ public struct AppSettings: Codable, Hashable, Sendable {
     /// `KomgaAPI`. Always resolved against the *visible* libraries before use, so a hidden or stale id
     /// silently falls back to All Libraries.
     public var lastLibraryId: String?
+    /// [NUEVO] The order the user last picked for the books of a series; `nil` = never picked one.
+    public var bookSort: SavedSort?
+    /// [NUEVO] Same, for the series of a library.
+    public var seriesSort: SavedSort?
 
     public init() {}
 }

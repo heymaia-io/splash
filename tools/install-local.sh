@@ -47,6 +47,7 @@ xcodebuild \
   DEVELOPMENT_TEAM="$SPLASH_TEAM_ID" \
   SWIFT_ACTIVE_COMPILATION_CONDITIONS="\$(inherited) $UNLOCK_FLAG" \
   -allowProvisioningUpdates \
+  -allowProvisioningDeviceRegistration \
   build
 
 app="$(find "$DD/Build/Products/Release-iphoneos" -maxdepth 1 -name 'Splash.app' | head -1)"

@@ -82,6 +82,15 @@ enum AppMigrations {
         migrator.registerMigration("v3_last_library") { db in
             try db.execute(sql: "ALTER TABLE AppSettings ADD COLUMN last_library_id TEXT;")
         }
+        // [NUEVO] The sort orders the user last picked. Appended, never edit v1.
+        migrator.registerMigration("v4_remembered_sort") { db in
+            try db.execute(sql: """
+                ALTER TABLE AppSettings ADD COLUMN book_sort_primary TEXT;
+                ALTER TABLE AppSettings ADD COLUMN book_sort_secondary TEXT;
+                ALTER TABLE AppSettings ADD COLUMN series_sort_primary TEXT;
+                ALTER TABLE AppSettings ADD COLUMN series_sort_secondary TEXT;
+                """)
+        }
         return migrator
     }
 

@@ -90,8 +90,10 @@ public final class SeriesViewModel {
     public private(set) var isDeletingSelection = false
     public private(set) var currentPage = 1
     public private(set) var totalPages = 1
-    /// Pages (most first), ties alphabetical. Internal: `SortChain` is a UI-layer type.
-    var sort = SortChain<BooksSortOption>(primary: .pagesDesc, secondary: .titleAsc)
+    /// Pages (most first), ties alphabetical, until the user picks something else.
+    static let defaultSort = SortChain<BooksSortOption>(primary: .pagesDesc, secondary: .titleAsc)
+    /// Remembered across series and launches. Internal: `SortChain` is a UI-layer type.
+    var sort: SortChain<BooksSortOption>
     public var downloadFilter: BookDownloadFilter
     /// [NUEVO] Book-tag filter. Several tags read as OR, like the library's series-tag filter.
     public var selectedTags: Set<String> = []
@@ -137,6 +139,7 @@ public final class SeriesViewModel {
         self.downloadFilter = downloadFilter
         self.authState = authState
         self.settings = settings
+        sort = Self.rememberedSort(settings)
         self.events = events
         self.allowsServerDelete = allowsServerDelete
         self.hiddenFilter = hiddenFilter
@@ -184,7 +187,17 @@ public final class SeriesViewModel {
     }
 
     public func onPageChange(_ page: Int) async { await loadBooks(page: page) }
-    public func onSortChange() async { await loadBooks(page: 1) }
+    private static func rememberedSort(_ settings: CommonSettingsRepository) -> SortChain<BooksSortOption> {
+        SortChain(saved: settings.value.bookSort, default: defaultSort)
+    }
+
+    /// A screen left on the navigation stack picks up a sort chosen on a screen opened after it.
+    func restoreRememberedSort() { sort = Self.rememberedSort(settings) }
+
+    public func onSortChange() async {
+        settings.remember(sort, in: \.bookSort)
+        await loadBooks(page: 1)
+    }
     public func onDownloadFilterChange() async { await loadBooks(page: 1) }
     public func onTagFilterChange() async { await loadBooks(page: 1) }
     public func onLetterChange() async { await loadBooks(page: 1) }
@@ -523,6 +536,7 @@ struct SeriesScreen: View {
             Text("Only the copies on this device are removed. The books stay on the server.")
         }
         .onChange(of: model.sort) { Task { await model.onSortChange() } }
+        .onAppear { model.restoreRememberedSort() }
         .onChange(of: model.downloadFilter) { Task { await model.onDownloadFilterChange() } }
         .onChange(of: model.selectedTags) { Task { await model.onTagFilterChange() } }
         .onChange(of: model.letter) { Task { await model.onLetterChange() } }

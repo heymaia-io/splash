@@ -40,6 +40,20 @@ import Testing
         #expect(try await store.load()?.lastLibraryId == nil)
     }
 
+    @Test func rememberedSortsRoundTrip() async throws {
+        let store = GRDBAppSettingsStore(try SplashDatabase.inMemory().app)
+        var settings = AppSettings()
+        settings.bookSort = SavedSort(primary: "titleAsc", secondary: "pagesDesc")
+        settings.seriesSort = SavedSort(primary: "random")
+        try await store.save(settings)
+        #expect(try await store.load() == settings)
+
+        settings.bookSort = nil
+        settings.seriesSort = nil
+        try await store.save(settings)
+        #expect(try await store.load() == settings)
+    }
+
     @Test func imageReaderSettingsRoundTrip() async throws {
         let database = try SplashDatabase.inMemory()
         let store = GRDBImageReaderSettingsStore(database.app)
